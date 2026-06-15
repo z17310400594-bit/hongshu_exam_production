@@ -4,8 +4,20 @@ import type { DifyGenerateParams, DifyGenerateResult, CardData, PlanDay, CardIte
  * Dify Workflow API 封装（H5 专用，fetch + streaming）
  */
 
-const DIFY_API_URL = 'http://localhost/v1/workflows/run'
-const DIFY_API_KEY = 'app-SLc5nNMlGTuR8XJrEY48ssY1'
+// URL：自动跟随访问地址（本机=localhost，手机=局域网IP）
+const DIFY_API_URL =
+  typeof window !== 'undefined'
+    ? `http://${window.location.hostname}/v1/workflows/run`
+    : 'http://localhost/v1/workflows/run'
+
+const DIFY_API_KEY = 'app-TFTd844ZQhdiyG9prkNZAXIg'
+
+// 运行时校验：如果值仍然为空，抛出明确错误方便排查
+if (!DIFY_API_URL || !DIFY_API_KEY) {
+  throw new Error(
+    'Dify API 配置缺失，请检查 .env.development 中 TARO_APP_DIFY_API_URL 和 TARO_APP_DIFY_API_KEY 是否正确配置',
+  )
+}
 
 export type ProgressCallback = (step: number, label: string) => void
 
