@@ -1,0 +1,13 @@
+FROM langgenius/dify-api:1.14.2
+
+USER root
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir pg8000 fastapi uvicorn
+
+COPY policy_api.py .
+
+EXPOSE 8400
+
+ENTRYPOINT ["/usr/local/bin/python", "policy_api.py"]

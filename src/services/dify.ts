@@ -116,7 +116,7 @@ export async function generateCards(
   params: DifyGenerateParams,
   onProgress?: ProgressCallback,
 ): Promise<DifyGenerateResult> {
-  const { examName, examDate, cardSequence, role, targetAudience, theme, includeStudyMaterial, chapterIndex } = params
+  const { examName, examDate, cardSequence, role, targetAudience, theme } = params
 
   onProgress?.(1, '🎯 正在调用 AI 生成卡片...')
 
@@ -146,8 +146,6 @@ export async function generateCards(
         today_date: timeVars.today,
         target_audience: targetAudience ?? '',
         theme: theme ?? '',
-        include_study_material: includeStudyMaterial ?? false,
-        chapter_index: chapterIndex ?? '',
       },
       response_mode: 'streaming',
       user: 'workbench-user',

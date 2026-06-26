@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/post-edit-lint.cjs"
+          }
+        ],
+        "description": "Auto-fix ESLint/Stylelint on edited files (TS/TSX/SCSS/CSS)"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run typecheck 2>&1 | tail -5"
+          }
+        ],
+        "description": "Verify TypeScript types at session end"
+      }
+    ]
+  }
+}

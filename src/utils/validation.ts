@@ -45,9 +45,9 @@ export function validateGeneratedContent(content: GeneratedContent): {
       errors.push(`${prefix}：文字中包含异常控制字符`)
     }
 
-    // plan 类型检查日期
+    // plan 类型检查日期（排除省略占位行）
     if (card.type === 'plan' && card.days && card.days.length > 0) {
-      const dates = card.days.map(d => d.date).filter(Boolean)
+      const dates = card.days.map(d => d.date).filter(d => d && d !== '...')
       const uniqueDates = new Set(dates)
       if (uniqueDates.size !== dates.length) {
         warnings.push(`${prefix}：学习计划中存在重复日期`)
@@ -89,7 +89,7 @@ export function getCardPlainText(card: CardData): string {
 
   if (card.type === 'plan' && card.days && card.days.length > 0) {
     lines.push('')
-    card.days.forEach(d => {
+    card.days.filter(d => d.date !== '...').forEach(d => {
       lines.push(`  ${d.date} ${d.weekday} · ${d.task}（${d.duration}）`)
     })
   }

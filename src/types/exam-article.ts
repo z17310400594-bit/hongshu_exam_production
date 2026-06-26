@@ -118,8 +118,6 @@ export interface DifyGenerateParams {
   phase2End?: string        // 强化阶段结束日期 YYYY-MM-DD
   targetAudience?: string   // V1.1 目标人群标签或自定义文本
   theme?: string            // V1.1 主题方向预设名或自定义文本
-  includeStudyMaterial?: boolean  // V1.1 是否包含学习资料卡片
-  chapterIndex?: string     // V3 知识库章节索引 JSON，仅匹配的考试传入
 }
 
 /** Dify Workflow 输出（预期结构，后续根据实际情况调整） */

@@ -93,7 +93,29 @@ def main(llm_outputs, original_cards, exam_name: str = ""):
                     "_raw": item, "_error": "JSON parse failed",
                 })
         elif isinstance(item, dict):
-            generated.append(item)
+            # * V3.3: Dify Iterator 内 LLM 节点输出格式为 {"text":"...","usage":{...},"finish_reason":"..."}
+            # 需要先提取 text 字段再解析，否则会把整个包装对象当卡片导致内容全空
+            if "text" in item and isinstance(item["text"], str):
+                text = item["text"].strip()
+                # 清洗 DeepSeek <think> 思考标签
+                text = re.sub(r'<think>.*?</think>\s*', '', text, flags=re.DOTALL)
+                if text.startswith("```"):
+                    lines = text.split("\n")
+                    text = "\n".join(
+                        lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                    )
+                try:
+                    parsed = json.loads(text)
+                    generated.append(parsed)
+                except json.JSONDecodeError:
+                    generated.append({
+                        "type": "unknown", "title": "", "subtitle": "",
+                        "days": [], "items": [], "qrcode_url": "",
+                        "_raw": text, "_error": "JSON parse failed after extracting text",
+                    })
+            else:
+                # 非 LLM 响应包装格式，直接使用
+                generated.append(item)
         else:
             generated.append({
                 "type": "unknown", "title": "", "subtitle": "",

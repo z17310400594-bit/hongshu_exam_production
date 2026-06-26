@@ -1,13 +1,13 @@
 import { View, Text } from '@tarojs/components'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useExamArticleStore } from '@/store/examArticleStore'
-import type { CardType, CardData } from '@/types/exam-article'
+import type { CardData } from '@/types/exam-article'
 import { STYLE_TOKENS } from '@/constants/style-tokens'
 import { PRESET_PLAN_TYPE, PRESET_KNOWLEDGE_TYPE } from '@/constants/card-templates'
 import { getCardPlainText, deepClone, validateGeneratedContent } from '@/utils/validation'
 import { copyToClipboard } from '@/utils/clipboard'
 import { useCardExport } from '@/hooks/useCardExport'
-import { EXAM_CATEGORIES } from '@/constants/exam-categories'
+import { useCertPresets } from '@/hooks/useCertPresets'
 import { TARGET_AUDIENCES, THEME_PRESETS } from '@/constants/audience-theme'
 import { CARD_TYPE_LABELS, CARD_TYPE_BADGES, CARD_TYPE_OPTIONS } from '@/constants/card-type-labels'
 import './index.scss'
@@ -21,6 +21,7 @@ function getCountdown(examDate: string): string {
 export default function ExamArticle() {
   const store = useExamArticleStore()
   const { exportAll, exportSingle, exportLayered } = useCardExport()
+  const { certOptions, loading: certsLoading } = useCertPresets()
 
   // 本地 UI 状态
   const [showConfirm, setShowConfirm] = useState(false)
@@ -31,23 +32,24 @@ export default function ExamArticle() {
   const [toastMsg, setToastMsg] = useState('')
   const [exporting, setExporting] = useState(false)
   const [examMode, setExamMode] = useState<'preset' | 'custom'>('preset')
-  const [selectedPreset, setSelectedPreset] = useState(EXAM_CATEGORIES[0]?.id ?? '')
+  const [selectedPreset, setSelectedPreset] = useState(certOptions[0]?.id ?? '')
 
-  // 初始化：默认选中第一个预设
+  // 初始化：默认选中第一个主题方向
   useEffect(() => {
-    const firstCat = EXAM_CATEGORIES[0]
-    if (firstCat) {
-      store.setExamName(firstCat.name)
-      store.setExamDate(firstCat.examDate)
-      if (firstCat.recommendedPreset) {
-        store.setCardSequence([...firstCat.recommendedPreset])
-      }
-    }
-    // 默认选中第一个主题方向
     if (THEME_PRESETS.length > 0 && !store.theme) {
       store.setTheme(THEME_PRESETS[0])
     }
   }, [])
+
+  // DB 证书加载完成后自动选中第一条
+  useEffect(() => {
+    if (!certsLoading && certOptions.length > 0) {
+      const firstCat = certOptions[0]
+      setSelectedPreset(firstCat.id)
+      store.setExamName(firstCat.name)
+      store.setExamDate(firstCat.examDate)
+    }
+  }, [certsLoading])
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewProblemType, setReviewProblemType] = useState<'sensitive' | 'duplicate'>('sensitive')
   // V1.1 校验
@@ -145,7 +147,7 @@ export default function ExamArticle() {
         [`subtitle_${index}`]: card.subtitle || '',
       }
       if (card.type === 'plan' && card.days) {
-        vals[`days_${index}`] = card.days.map(d => `${d.date} ${d.weekday} · ${d.task}（${d.duration}）`).join('\n')
+        vals[`days_${index}`] = card.days.filter(d => d.date !== '...').map(d => `${d.date} ${d.weekday} · ${d.task}（${d.duration}）`).join('\n')
       }
       if (['subjects', 'notice', 'resources', 'priority', 'mnemonics'].includes(card.type) && card.items) {
         vals[`items_${index}`] = card.items.map(it => `${it.label}：${it.content}`).join('\n')
@@ -277,15 +279,16 @@ export default function ExamArticle() {
             )}
             <View className='card-divider' />
             <View className='plan-list'>
-              {(displayCard.days ?? []).slice(0, 8).map((d, di) => (
+              {/* 过滤省略占位行（摘要模式下 CODE_1 插入的 "..." 日期），避免预览出现空行 */}
+              {(displayCard.days ?? []).filter(d => d.date !== '...').slice(0, 8).map((d, di) => (
                 <View key={di} className={`day-row ${d.duration === '休息' ? 'rest' : ''}`}>
                   <Text className='day-date'>{d.date}</Text>
                   <Text className='day-task'>{d.task}</Text>
                   <Text className='day-dur'>{d.duration}</Text>
                 </View>
               ))}
-              {(displayCard.days ?? []).length > 8 && (
-                <Text className='day-more'>... 共 {displayCard.days.length} 天</Text>
+              {(displayCard.days ?? []).filter(d => d.date !== '...').length > 8 && (
+                <Text className='day-more'>... 共 {(displayCard.days ?? []).filter(d => d.date !== '...').length} 天</Text>
               )}
             </View>
           </View>
@@ -531,7 +534,7 @@ export default function ExamArticle() {
                   学习日程（days）
                   <textarea
                     rows={5}
-                    value={editValues[`days_${i}`] ?? ((card.days ?? []).map(d => `${d.date} ${d.weekday} · ${d.task}（${d.duration}）`).join('\n'))}
+                    value={editValues[`days_${i}`] ?? ((card.days ?? []).filter(d => d.date !== '...').map(d => `${d.date} ${d.weekday} · ${d.task}（${d.duration}）`).join('\n'))}
                     onChange={(e) => setEditValues(prev => ({ ...prev, [`days_${i}`]: e.target.value }))}
                   />
                 </label>
@@ -673,7 +676,7 @@ export default function ExamArticle() {
                 } else if (val) {
                   setExamMode('preset')
                   setSelectedPreset(val)
-                  const cat = EXAM_CATEGORIES.find(c => c.id === val)
+                  const cat = certOptions.find(c => c.id === val)
                   if (cat) {
                     store.setExamName(cat.name)
                     store.setExamDate(cat.examDate)
@@ -689,9 +692,13 @@ export default function ExamArticle() {
               }}
             >
               <optgroup label='━━ 预设考试 ━━'>
-                {EXAM_CATEGORIES.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
+                {certsLoading ? (
+                  <option disabled>加载中...</option>
+                ) : (
+                  certOptions.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))
+                )}
               </optgroup>
               <option value='__custom__'>+ 自定义输入</option>
             </select>
@@ -715,11 +722,15 @@ export default function ExamArticle() {
           <View className='form-group'>
             <Text className='form-label'>考试日期</Text>
             <input
-              className='form-input full'
+              className={`form-input full ${!store.examDate ? 'input-hint' : ''}`}
               type='date'
               value={store.examDate}
               onChange={(e) => store.setExamDate(e.target.value)}
+              placeholder='请选择考试日期'
             />
+            {!store.examDate && (
+              <Text className='field-hint'>数据库暂无该考试的日期，请手动选择</Text>
+            )}
           </View>
 
           {/* V1.1 目标人群 */}
@@ -924,7 +935,8 @@ export default function ExamArticle() {
             store.cardSequence.map((_type, i) => (
               <View key={i} className='card-preview skeleton' {...{ 'data-card-index': i } as any} style={{
                 borderRadius: styleVars['--card-radius'],
-              } as React.CSSProperties}>
+              } as React.CSSProperties}
+              >
                 <Text className='skeleton-placeholder'>占位</Text>
               </View>
             ))

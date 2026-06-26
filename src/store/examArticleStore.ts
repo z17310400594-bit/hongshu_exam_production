@@ -6,7 +6,6 @@ import type {
 import { PRESET_STANDARD, PRESET_COMPACT, PRESET_WITH_STUDY } from '@/constants/card-templates'
 import { STYLE_TOKENS, DEFAULT_STYLE_KEY } from '@/constants/style-tokens'
 import { generateCards, rewriteCard, reviseByFeedback } from '@/services/dify'
-import { getChapterIndex } from '@/constants/chapter-index'
 import { deepClone } from '@/utils/validation'
 
 interface ExamArticleState {
@@ -50,7 +49,7 @@ interface ExamArticleState {
   setExamDate: (date: string) => void
   setCardSequence: (seq: CardType[]) => void
   setCurrentStyle: (key: string) => void
-  applyPreset: (count: 5 | 6) => void
+  applyPreset: (count: 5 | 6 | 7) => void
   addCard: (type: CardType) => void
   removeCard: (index: number) => void
   reorderCards: (from: number, to: number) => void
@@ -165,10 +164,10 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
 
   // V1.1 主题预设：选中 → 禁用自由输入
   setTheme: (preset: string) => {
-    set(state => ({
+    set({
       theme: preset,
       themeCustom: '',
-    }))
+    })
   },
 
   // V1.1 主题自定义
@@ -188,8 +187,6 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
         role: get().role,
         targetAudience: targetAudience || targetAudienceCustom,
         theme: theme || themeCustom,
-        includeStudyMaterial: cardSequence.includes('study_material'),
-        chapterIndex: getChapterIndex(examName),
       },
       (step, label) => {
         set(state => ({

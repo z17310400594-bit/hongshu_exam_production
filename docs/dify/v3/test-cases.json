@@ -1,0 +1,187 @@
+[{"type":"cover","title":"","subtitle":"","days":[],"items":[],"qrcode_url":""},{"type":"plan","title":"","subtitle":"","days":[],"items":[],"qrcode_url":""},{"type":"plan","title":"","subtitle":"","days":[],"items":[],"qrcode_url":""},{"type":"priority","title":"","subtitle":"","days":[],"items":[],"qrcode_url":""},{"type":"study_material","title":"","subtitle":"","days":[],"items":[],"qrcode_url":"","study_material":[]},{"type":"cta","title":"","subtitle":"","days":[],"items":[],"qrcode_url":""}]
+[
+  {
+    "name": "TC-01: 命中 physician_licensed — 全量 DB 注入 + 前端阶段拆分",
+    "note": "exam_name = 执业医师资格证, 命中医师, 含 plan 卡片 + phase_1_end/phase_2_end, 测试前端阶段拆分路径",
+    "inputs": {
+      "exam_name": "执业医师资格证",
+      "exam_date": "2025-08-23",
+      "today_date": "2025-06-26",
+      "countdown_days": 58,
+      "phase_1_end": "2025-07-20",
+      "phase_2_end": "2025-08-10",
+      "cards": [
+        {"type": "cover"},
+        {"type": "subjects"},
+        {"type": "priority"},
+        {"type": "plan"},
+        {"type": "plan"},
+        {"type": "study_material"},
+        {"type": "study_material"},
+        {"type": "mnemonics"},
+        {"type": "notice"},
+        {"type": "resources"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "在职备考",
+      "theme": "技能考试备考"
+    },
+    "expect": {
+      "db_matched": "true",
+      "resolved_cert_id": "physician_licensed",
+      "study_material_cards_have_kp_data": true,
+      "subjects_card_has_subjects_data": true,
+      "priority_card_has_priority_data": true,
+      "mnemonics_card_has_mnemonic_anchors": true,
+      "notice_card_has_schedule_data": true,
+      "plan_cards_have_phase_info": true
+    }
+  },
+  {
+    "name": "TC-02：命中 pharmacist_licensed — 药师资格证，无前端阶段",
+    "note": "exam_name = 执业药师，命中药师，3 张 plan 测试自动均分阶段",
+    "inputs": {
+      "exam_name": "执业药师",
+      "exam_date": "2025-10-18",
+      "today_date": "2025-07-01",
+      "countdown_days": 109,
+      "phase_1_end": "",
+      "phase_2_end": "",
+      "cards": [
+        {"type": "cover"},
+        {"type": "subjects"},
+        {"type": "priority"},
+        {"type": "study_material"},
+        {"type": "mnemonics"},
+        {"type": "notice"},
+        {"type": "plan"},
+        {"type": "plan"},
+        {"type": "plan"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "零基础",
+      "theme": "执业药师备考"
+    },
+    "expect": {
+      "db_matched": "true",
+      "resolved_cert_id": "pharmacist_licensed",
+      "subjects_card_has_subjects_data": true,
+      "notice_card_has_schedule_data": true
+    }
+  },
+  {
+    "name": "TC-03：未命中 — 教师资格证 → LLM 自由生成",
+    "note": "exam_name = 教师资格证，数据库无此证书，全链路降级",
+    "inputs": {
+      "exam_name": "教师资格证",
+      "exam_date": "2025-11-08",
+      "today_date": "2025-07-15",
+      "countdown_days": 116,
+      "phase_1_end": "",
+      "phase_2_end": "",
+      "cards": [
+        {"type": "cover"},
+        {"type": "subjects"},
+        {"type": "priority"},
+        {"type": "study_material"},
+        {"type": "study_material"},
+        {"type": "plan"},
+        {"type": "notice"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "非科班",
+      "theme": "教师资格证笔试"
+    },
+    "expect": {
+      "db_matched": "false",
+      "resolved_cert_id": "",
+      "all_cards_no_db_injection": true
+    }
+  },
+  {
+    "name": "TC-04：空 exam_name → 直接降级",
+    "note": "exam_name 为空，CODE_0_db 直接返回空，行为 = 旧版",
+    "inputs": {
+      "exam_name": "",
+      "exam_date": "2025-12-06",
+      "today_date": "2025-10-01",
+      "countdown_days": 66,
+      "phase_1_end": "",
+      "phase_2_end": "",
+      "cards": [
+        {"type": "cover"},
+        {"type": "subjects"},
+        {"type": "study_material"},
+        {"type": "plan"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "在职备考"
+    },
+    "expect": {
+      "db_matched": "false",
+      "resolved_cert_id": "",
+      "all_cards_no_db_injection": true
+    }
+  },
+  {
+    "name": "TC-05：命中但无科目数据 — 安全工程师",
+    "note": "exam_name = 注册安全工程师，命中 yj_jzs4，有 cert_name 但暂无科目/知识点",
+    "inputs": {
+      "exam_name": "注册安全工程师",
+      "exam_date": "2025-09-13",
+      "today_date": "2025-07-01",
+      "countdown_days": 74,
+      "phase_1_end": "",
+      "phase_2_end": "",
+      "cards": [
+        {"type": "cover"},
+        {"type": "subjects"},
+        {"type": "study_material"},
+        {"type": "notice"},
+        {"type": "plan"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "在职备考"
+    },
+    "expect": {
+      "db_matched": "true",
+      "resolved_cert_id": "yj_jzs4",
+      "db_cert_name_injected": true,
+      "no_kp_or_subjects_data": true
+    }
+  },
+  {
+    "name": "TC-06：考前冲刺 — 短倒计时 + 单 plan 摘要模式",
+    "note": "倒计时 13 天，单张 plan 触发摘要模式 + 考前阶段判定",
+    "inputs": {
+      "exam_name": "执业医师资格证",
+      "exam_date": "2025-07-09",
+      "today_date": "2025-06-26",
+      "countdown_days": 13,
+      "phase_1_end": "",
+      "phase_2_end": "",
+      "cards": [
+        {"type": "cover"},
+        {"type": "notice"},
+        {"type": "mnemonics"},
+        {"type": "study_material"},
+        {"type": "plan"},
+        {"type": "cta"}
+      ],
+      "role": "小红书-医考号",
+      "target_audience": "在职备考",
+      "theme": "考前冲刺"
+    },
+    "expect": {
+      "db_matched": "true",
+      "resolved_cert_id": "physician_licensed",
+      "plan_summary_mode": true,
+      "overall_phase": "考前"
+    }
+  }
+]

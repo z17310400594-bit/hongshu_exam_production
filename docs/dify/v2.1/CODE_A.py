@@ -9,6 +9,10 @@
 #   exam_date     -- START 节点
 #   role          -- START 节点
 #
+# V2.1 改动(相比 V2):
+#   - subjects 卡片:废弃 3 桶分类法(逻辑型/记忆型/低分型),改为关键词池 + 每科差异化方法 + 具体动作
+#   - priority 卡片:同 subjects,content 格式升级为[具体动作]+[时间分配]+[一句话理由]
+#
 # 第二层新增卡片类型:resources(备考资料),priority(分值分布),mnemonics(记忆口诀)
 
 import json
@@ -47,14 +51,6 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
     # V1.1 新增:目标人群和主题
     target_audience = current_card.get("target_audience", target_audience or "")
     theme = current_card.get("theme", theme or "")
-
-    # V3 新增:数据库注入字段(来自 CODE_1 section 8)
-    db_cert_name = current_card.get("db_cert_name", "")
-    kp_data = current_card.get("kp_data", [])
-    subjects_data = current_card.get("subjects_data", [])
-    priority_data = current_card.get("priority_data", {})
-    mnemonic_anchors = current_card.get("mnemonic_anchors", [])
-    schedule_data = current_card.get("schedule_data", {})
 
     # ── 角色画像映射表 ──
     ROLE_PROFILES = {
@@ -210,9 +206,6 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         # ★ V3.2 封面改造:考试日锚定 + 人群钩子
         exam_cn = str(d.month) + "月" + str(d.day) + "日" if exam_date and exam_md else exam_md
 
-        # V3 DB 注入:优先使用数据库里的准确证书名
-        cert_display_name = db_cert_name if db_cert_name else exam_name
-
         audience_hook_map = {
             "在职备考": "上班族碎片时间也能上岸",
             "宝妈备考": "带娃间隙我是怎么考过的",
@@ -224,20 +217,20 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         system_prompt = TONE_BLOCK + "\n\n---\n\n"
 
         system_prompt += (
-            "你现在的任务:为[" + cert_display_name + "]考试生成一张封面卡片.\n\n"
+            "你现在的任务:为[" + exam_name + "]考试生成一张封面卡片.\n\n"
             + "* 封面卡片核心公式:考试日锚定 + 人群痛点 + 功能性承诺\n\n"
             + "规则:\n"
             + "1. 标题必须以考试日为锚点,让读者感到紧迫感:\n"
-            + '   - 核心句式:[' + exam_cn + cert_display_name + '已经开考了!]\n'
+            + '   - 核心句式:[' + exam_cn + exam_name + '已经开考了!]\n'
             + '   - 标题后半段可以自由发挥,加入人群痛点钩子,例如:\n'
         )
         if audience_hook:
             system_prompt += (
-                '     [' + exam_cn + cert_display_name + '已经开考了!' + audience_hook + ']\n'
+                '     [' + exam_cn + exam_name + '已经开考了!' + audience_hook + ']\n'
             )
         else:
             system_prompt += (
-                '     [' + exam_cn + cert_display_name + '已经开考了!这份计划帮你少走弯路]\n'
+                '     [' + exam_cn + exam_name + '已经开考了!这份计划帮你少走弯路]\n'
             )
         system_prompt += (
             "2. subtitle 必须包含三要素,用[·]连接(不用[-]):\n"
@@ -262,7 +255,7 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
             + "输出格式(严格按此 JSON):\n"
             + "{\n"
             + '  "type": "cover",\n'
-            + '  "title": "' + exam_cn + cert_display_name + '已经开考了!",\n'
+            + '  "title": "' + exam_cn + exam_name + '已经开考了!",\n'
             + '  "subtitle": "距离考试仅剩 ' + str(countdown_days) + ' 天 · 碎片时间也能上岸 · 这份计划请收好",\n'
             + '  "days": [],\n'
             + '  "items": [],\n'
@@ -271,12 +264,12 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         )
 
         user_prompt = (
-            "考试名称:" + cert_display_name + "\n"
+            "考试名称:" + exam_name + "\n"
             + "考试日期:" + exam_date + "(考试日在" + exam_cn + ")\n"
             + "倒计时天数:" + str(countdown_days) + " 天\n"
             + "当前角色:" + role + "\n"
             + "目标人群:" + (target_audience or "未指定") + "\n\n"
-            + "请按封面公式生成卡片.标题用[" + exam_cn + cert_display_name + "已经开考了!]句式锚定考试日,"
+            + "请按封面公式生成卡片.标题用[" + exam_cn + exam_name + "已经开考了!]句式锚定考试日,"
             + "后半段可以根据人群自由发挥.\n"
             + "subtitle 必须包含倒计时+人群钩子+计划定位三要素,用[·]连接."
         )
@@ -394,39 +387,70 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
 
     elif card_type == "subjects":
         # ============================================================
-        # 考试科目卡片 (subjects):分值信号 + 差异化策略
-        # 公式:[分值占比排序] -> [按性价比顺序] -> [每科一句话策略] -> [战略性放弃]
+        # ★ V2.1 考试科目卡片 (subjects):废弃 3 桶分类法,改为关键词池 + 每科差异化方法
+        # 公式:[分值排序] -> [每科一个不同的备考关键词] -> [具体动作+时间] -> [战略性放弃]
+        #
+        # 核心改动:
+        #   旧:"高分值+逻辑型→理解重于记忆""高分值+记忆型→刷题即可"
+        #      → 每科都能套,读者看完记不住任何一科的区别
+        #   新:每科必须从关键词池挑一个不同的关键词 + 写出具体动作 + 每天花多久
+        #      → 让读者觉得"这个人是真的考过,知道每科的攻法不一样"
         # ============================================================
         system_prompt = TONE_BLOCK + "\n\n---\n\n"
 
         system_prompt += (
             "你现在的任务:为[" + exam_name + "]考试生成一张考试科目与备考策略卡片.\n"
-            + "你的角色是一个考过的过来人,你知道哪些科目值得花时间,哪些可以先放一放.\n\n"
-            + "* 科目卡片核心公式:按分值/重要性排序 -> 每科一句话策略 -> 点名可以战略性放弃的模块\n\n"
-            + "核心原则:你不是在罗列知识点,你是在告诉用户----你的时间花在哪里最划算.\n\n"
+            + "你的角色是一个考过的过来人.你知道每科的攻法完全不同——有的靠画框架,有的靠刷真题,有的靠背口诀.\n\n"
+            + "* 科目卡片核心公式:按分值排序 → 每科一个不同的备考关键词 → 具体动作+时间 → 战略性放弃\n\n"
+            + "核心原则:你不是在罗列知识点,你是在告诉用户——每科具体怎么做,每天花多久,凭什么这样做.\n\n"
             + "硬约束规则:\n"
-            + "1. 列出 4-6 个考试科目/单元,按性价比从高到低排序,不是按课本目录顺序\n"
-            + "2. 每个科目 label = 科目名(4-6 字)\n"
-            + "   content = 涵盖内容 + 一句话备考策略(15-30 字)\n"
-            + "   - 高分值+逻辑型学科:理解重于记忆,病例分析题多,建议先攻克\n"
-            + "   - 高分值+记忆型学科:内容杂但题浅,持续刷题即可\n"
-            + "   - 低分值+纯记忆型学科:考前两周突击背,现在不用花太多时间\n"
-            + "3. * 必须有至少一个[战略性放弃]建议\n"
-            + "   - 在最后一个 item 的 content 中,或单独一条 item\n"
-            + "   - 点名说具体哪个模块可以先放一放,并说明原因\n"
-            + "   - AI 天性倾向于全面不遗漏,你必须明确打破这个倾向\n"
-            + "   - 例如:生化里冷门的酶学可以先放一放,主要攻克循环和呼吸系统\n"
-            + "4. title 固定为[考试科目一览]\n"
-            + "5. subtitle 固定为[" + exam_name + " - 按性价比排序]\n"
-            + "6. 输出纯 JSON,不要 Markdown\n\n"
+            + "1. 列出 4-6 个考试科目/单元,按**性价比从高到低**排序,不是按课本目录顺序\n\n"
+            + "2. 每个科目 label = 科目名(4-8 字)\n\n"
+            + "3. ★ 每个科目的 content 格式:[备考关键词] + [具体动作+时间分配] + [一句话理由](25-40 字)\n"
+            + "   备考关键词必须从以下池中选取,**每科必须不同,禁止两科用同一个**:\n"
+            + "   ┌──────────┬────────────────────────────────────┐\n"
+            + "   │ 关键词   │ 适用场景 & 内容写法                   │\n"
+            + "   ├──────────┼────────────────────────────────────┤\n"
+            + "   │ 画框架   │ 体系庞杂的科目 → 先画知识树,再挂细节   │\n"
+            + "   │ 刷真题   │ 考点重复率高的科目 → 近5年真题刷3遍    │\n"
+            + "   │ 背口诀   │ 纯记忆型科目 → 编谐音/顺口溜/画面联想  │\n"
+            + "   │ 做对比   │ 易混淆科目 → 列表格对比(如民诉vs刑诉)  │\n"
+            + "   │ 看案例   │ 案例分析题多的科目 → 把判例当小说看    │\n"
+            + "   │ 默写本   │ 需要建立体系的科目 → 每章默写知识框架    │\n"
+            + "   │ 碎片刷   │ 零碎考点多的科目 → 通勤/午休小程序刷    │\n"
+            + "   │ 跟视频   │ 入门难的科目 → 1.5倍速视频课先建立认知  │\n"
+            + "   │ 练计算   │ 有公式/计算的科目 → 每天一道大题保持手感│\n"
+            + "   │ 整理错题 │ 提分瓶颈期的科目 → 错题归纳+归类考点   │\n"
+            + "   └──────────┴────────────────────────────────────┘\n\n"
+            + "   ✅ 正确示例(content 必须包含关键词+具体动作+每天时长+理由):\n"
+            + '     - 刑法:    "画框架+刷真题。先默写四要件框架,再近5年真题刷3遍,每天1.5h——分则罪名对比比死记管用10倍"\n'
+            + '     - 民法:    "做对比+看案例。合同法vs侵权法列表对比,指导案例当小说看,每天1.5h——混淆点用表格一网打尽"\n'
+            + '     - 刑诉:    "背口诀+练法条定位。口诀[拘传12时拘留24时],主观题翻法条,每天1h——程序法靠口诀硬背最快"\n'
+            + '     - 三国法:  "碎片刷。考点零碎分值低,通勤小程序刷,每天30min——不值得花整块时间,考前突击就够了"\n'
+            + '     - 药理学:  "画框架+背口诀。先画药物分类树(镇静催眠/抗抑郁/抗精神病),再背[胖游客专用电压力锅]类口诀,每天1h"\n'
+            + '     - 药化:    "跟视频+刷真题。1.5倍速先听结构母核,再刷近5年结构题,每天1h——先建立认知再刷题,不要一上来就硬背结构式"\n\n'
+            + "   ❌ 禁止写法(出现即视为未完成):\n"
+            + '     - "理解重于记忆,病例分析题多,建议先攻克" —— 每科都能套,等于没说\n'
+            + '     - "内容杂但题浅,持续刷题即可" —— 太抽象,没说怎么刷\n'
+            + '     - "考前两周突击,此时不建议花太多时间" —— 没说怎么突击\n'
+            + '     - 两科用同一个关键词 —— 每科攻法不同,关键词必须不重复\n'
+            + '     - 只说"刷题""背诵""看书"而不说具体怎么刷怎么背\n\n'
+            + "4. * 必须有至少一个[战略性放弃]建议:\n"
+            + "   - 放在最后一个 item 的 content 中\n"
+            + "   - 格式:'⚠️ 战略性放弃:[具体模块名,精确到章节](约X分).原因:[为什么可放].省下时间花在[XX]\n"
+            + "   - 例如:'⚠️ 战略性放弃:生化酶学(约3分).纯记忆且极低频,省下时间主攻循环(约25分)和呼吸(约15分)'\n"
+            + '   - AI 天性倾向于全面不遗漏,你必须明确打破这个倾向\n\n'
+            + "5. title 固定为[考试科目一览]\n"
+            + "6. subtitle 固定为[" + exam_name + " - 按性价比排序]\n"
+            + "7. 输出纯 JSON,不要 Markdown\n\n"
             + "输出格式:\n"
             + "{\n"
             + '  "type": "subjects",\n'
             + '  "title": "考试科目一览",\n'
             + '  "subtitle": "' + exam_name + ' - 按性价比排序",\n'
             + '  "items": [\n'
-            + '    {"label": "科目名", "content": "涵盖内容 + 备考策略(15-30字)"},\n'
-            + '    {"label": "科目名", "content": "涵盖内容 + 策略.tips:XX分值低可战略性放弃"}\n'
+            + '    {"label": "科目名", "content": "关键词+具体动作+每天时长+理由(25-40字)"},\n'
+            + '    {"label": "科目名", "content": "⚠️ 战略性放弃:XX(约X分).原因:XX.省下时间花在XX"}\n'
             + '  ],\n'
             + '  "days": [],\n'
             + '  "qrcode_url": ""\n'
@@ -436,23 +460,13 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         user_prompt = (
             "考试名称:" + exam_name + "\n"
             + "当前角色:" + role + "\n\n"
-            + ("## 真实考试科目（来自数据库——请基于以下科目生成，不要凭记忆编造科目名）\n\n"
-               + "\n".join(
-                   f"- {s.get('subject_name', '')}"
-                   + f"（满分 {s.get('full_mark', '?')} 分"
-                   + (f"，合格线 {s['pass_mark']} 分" if s.get('pass_mark') else "")
-                   + (f"，题型：{s['question_types']}" if s.get('question_types') else "")
-                   + (f"，考试时长 {s['exam_duration']} 分钟" if s.get('exam_duration') else "")
-                   + "）"
-                   for s in subjects_data
-               )
-               + "\n\n"
-               if subjects_data else "")
             + "请生成考试科目一览卡片.\n"
-            + "要求按分值/重要性排序,每个科目给出差异化备考策略,"
-            + "最后给出至少一个[可以战略性放弃]的具体建议.\n\n"
-            + "记住:你不是在给官方考试大纲,你是在给备考建议."
-            + "面面俱到的知识点列表没人看,没人存."
+            + "要求:\n"
+            + "- 按分值/重要性排序,每科从关键词池挑一个不同的关键词\n"
+            + "- 每科的 content 必须包含:关键词+具体动作+每天时长+理由\n"
+            + "- 最后一条给出[⚠️ 战略性放弃]建议,精确到具体模块和分值\n"
+            + "- 记住:你不是在给官方考试大纲,你是在给每科不同的攻法.\n"
+            + "- 面面俱到的知识点列表没人看;每科一个差异化方法,读者才会收藏."
         )
 
     elif card_type == "notice":
@@ -497,14 +511,6 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
             "考试名称:" + exam_name + "\n"
             + "考试日期:" + exam_date + "\n"
             + "当前角色:" + role + "\n\n"
-            + ("## 真实考试安排（来自数据库——日期必须使用以下数据，不要编造）\n\n"
-               + (f"- 考试年份：{schedule_data.get('year', '')} 年\n" if schedule_data.get('year') else "")
-               + (f"- 考试日期：{schedule_data.get('exam_date', '')}\n" if schedule_data.get('exam_date') else "")
-               + (f"- 报名时间：{schedule_data.get('registration_start', '')} 至 {schedule_data.get('registration_end', '')}\n"
-                  if schedule_data.get('registration_start') else "")
-               + (f"- 成绩公布：{schedule_data.get('result_date', '')}\n" if schedule_data.get('result_date') else "")
-               + "\n"
-               if schedule_data and any(schedule_data.values()) else "")
             + "请生成考前注意事项卡片,5 条须知.最后一条带点人情味."
         )
 
@@ -612,7 +618,13 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         )
 
     # ================================================================
-    # * 第二层新增:priority(分值分布与备考优先级)
+    # ★ V2.1 priority(分值分布与备考优先级):废弃 3 桶分类法,改为关键词池 + 每科差异化方法
+    #
+    # 核心改动:
+    #   旧:"高分值+逻辑型→理解重于记忆""高分值+记忆型→刷题即可"
+    #      → 与 subjects 卡片高度雷同,两张卡策略区分不开
+    #   新:每科必须从关键词池挑一个不同的关键词 + 写出具体动作+每天时长
+    #      → 与 subjects 形成互补:subjects 侧重"为什么这样学",priority 侧重"每天怎么分配时间"
     # ================================================================
     elif card_type == "priority":
         system_prompt = TONE_BLOCK + "\n\n---\n\n"
@@ -620,18 +632,41 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         system_prompt += (
             "你现在的任务:为[" + exam_name + "]考试生成一张分值分布与备考优先级卡片.\n"
             + "你的角色是一个熟悉考试评分规律的过来人,你知道哪些科目值得花时间,哪些可以放一放.\n\n"
-            + "* 核心原则:你不是在罗列知识点,你是在告诉用户----你的时间花在哪里最划算.\n\n"
+            + "* 核心原则:你不是在罗列知识点,你是在告诉用户——每科具体怎么攻,每天花多久,凭什么先攻这科.\n\n"
             + "规则:\n"
-            + "1. 列出 4-6 个科目/单元,按**性价比从高到低**排序,不是按课本目录顺序\n"
-            + "2. 每个科目的 label 格式为[① 单元名(约 XX 分)],必须包含大约分值或重要性信号\n"
-            + '   - 重要性信号示例:"占比最高""几乎必考""约 20 分""分值大头"\n'
-            + "3. 每个科目的 content 是**一句话备考策略**,区分不同科目的备考方法:\n"
-            + "   - 高分值+逻辑型:'理解重于记忆,病例分析题多,建议先攻克'\n"
-            + "   - 高分值+记忆型:'内容杂但题浅,持续刷题即可'\n"
-            + "   - 低分值+纯记忆型:'考前两周突击,此时不建议花太多时间'\n"
-            + "4. * 最后一条 content 必须是**战略性放弃建议**:\n"
-            + "   - 点名说具体哪个模块可以先放一放,以及为什么\n"
-            + "   - 例如:'生化里冷门的酶学可以先放一放,主要攻克循环和呼吸系统'\n"
+            + "1. 列出 4-6 个科目/单元,按**性价比从高到低**排序,不是按课本目录顺序\n\n"
+            + "2. 每个科目的 label 格式为[① 科目名(约 XX 分/占比X%)],必须包含大约分值\n"
+            + '   分值信号示例:"约 80 分""占比最高约25%""几乎必考约60分""分值大头约90分"\n\n'
+            + "3. ★ 每个科目的 content 格式:[备考关键词] + [具体动作+每天时长] + [为什么这样分配](25-40 字)\n"
+            + "   备考关键词必须从以下池中选取,**每科必须不同,禁止两科用同一个**:\n"
+            + "   ┌──────────┬────────────────────────────────────┐\n"
+            + "   │ 关键词   │ 适用场景 & 内容写法                   │\n"
+            + "   ├──────────┼────────────────────────────────────┤\n"
+            + "   │ 先攻克   │ 分值最高/基础科目 → 每天花最多时间     │\n"
+            + "   │ 持续刷   │ 考点重复率高的科目 → 每天固定题量      │\n"
+            + "   │ 碎片记   │ 零碎考点 → 通勤/排队碎片时间搞定       │\n"
+            + "   │ 周末攻   │ 需要整块时间深度学的科目 → 周末集中      │\n"
+            + "   │ 交叉学   │ 容易疲劳的科目 → 和其他科交替学        │\n"
+            + "   │ 先跟课   │ 入门门槛高的科目 → 先1.5倍速视频打底   │\n"
+            + "   │ 默写巩固 │ 需要背的科目 → 每天默写一章,红笔批改    │\n"
+            + "   │ 错题归类 │ 提分瓶颈科目 → 错题归类+每周回顾       │\n"
+            + "   │ 考前突击 │ 纯记忆低分科目 → 考前两周集中背        │\n"
+            + "   └──────────┴────────────────────────────────────┘\n\n"
+            + "   ✅ 正确示例(content 必须包含关键词+具体动作+每天时长+理由):\n"
+            + '     - "先攻克。每天 2h,先画知识框架再刷章节题——这科分值最高,拿下它及格线就稳了"\n'
+            + '     - "持续刷。每天 1.5h,近5年真题按章节刷,错题标记考点——考点重复率高,刷透真题比看教材管用"\n'
+            + '     - "碎片记。每天通勤+午休30min,小程序刷零碎考点——不值得花整块时间,但也不能完全不管"\n'
+            + '     - "周末攻。周末集中3h,做完整套卷+复盘——需要整块时间深度思考,碎片化学不透"\n'
+            + '     - "考前突击。考前两周每天1h背高频考点——纯记忆型,提前背反而会忘,考前突击效率最高"\n\n'
+            + "   ❌ 禁止写法(出现即视为未完成):\n"
+            + '     - "理解重于记忆,建议先攻克" —— 没有说怎么攻克,每天花多久\n'
+            + '     - "内容杂但题浅,持续刷题即可" —— 太抽象,没说怎么刷\n'
+            + '     - "考前两周突击,现在不用花太多时间" —— 没说考前怎么突击\n'
+            + '     - 两科用同一个关键词 —— 每科时间分配策略不同,关键词必须不重复\n\n'
+            + "4. ★ 战略性放弃建议(放在最后一条 content):\n"
+            + "   格式:'⚠️ 放一放:[具体模块名,精确到章节](约X分).省下时间主攻[XX].理由:[一句话]'\n"
+            + "   必须说清楚:放弃什么→省下时间花在哪→为什么\n"
+            + "   例如:'⚠️ 放一放:生化酶学+信号转导(约5分).省下时间主攻循环+呼吸(共约40分).理由:分值比8:1,花同样时间回报差8倍'\n\n"
             + "5. title 固定为[备考优先级指南]\n"
             + "6. subtitle 固定为[" + exam_name + " - 按分值排序]\n"
             + "7. 输出纯 JSON,不要 Markdown\n\n"
@@ -641,8 +676,8 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
             + '  "title": "备考优先级指南",\n'
             + '  "subtitle": "' + exam_name + ' - 按分值排序",\n'
             + '  "items": [\n'
-            + '    {"label": "① 第③单元-消化系统(约 80 分)", "content": "分值占比最高,病例分析题多,理解重于记忆,建议先拿下"},\n'
-            + '    {"label": "④ 第①单元-预防+心理+法规(约 20 分)", "content": "纯记忆型,考前两周突击即可,可以先放一放,把时间花在循环和呼吸系统上"}\n'
+            + '    {"label": "① 科目名(约 XX 分)", "content": "关键词+具体动作+每天时长+理由(25-40字)"},\n'
+            + '    {"label": "④ 科目名(约 XX 分)", "content": "⚠️ 放一放:XX(约X分).省下时间主攻XX.理由:XX"}\n'
             + '  ],\n'
             + '  "days": [],\n'
             + '  "qrcode_url": ""\n'
@@ -653,22 +688,13 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
             "考试名称:" + exam_name + "\n"
             + "考试日期:" + exam_date + "\n"
             + "当前角色:" + role + "\n\n"
-            + ("## 真实分值数据（来自数据库——分值分布必须使用以下数据）\n\n"
-               + "\n".join(
-                   f"- {s.get('subject_name', '?')}"
-                   + f"：满分 {s.get('full_mark', '?')} 分"
-                   for s in priority_data.get("subjects", [])
-               )
-               + "\n\n"
-               + "## 各科目考点数量统计\n\n"
-               + "\n".join(
-                   f"- {subj}: {cnt} 个考点"
-                   for subj, cnt in priority_data.get("kp_counts", {}).items()
-               )
-               + "\n\n请基于以上真实分值数据生成优先级排序，不要凭记忆估算分值。\n"
-               if priority_data and priority_data.get("subjects") else "")
-            + "请生成备考优先级指南卡片,按分值高低排序,并给出战略性放弃建议.\n"
-            + "记住:你的核心价值是告诉用户'时间花在哪里最划算',而不是罗列所有知识点."
+            + "请生成备考优先级指南卡片.\n"
+            + "要求:\n"
+            + "- 按分值高低排序,每科从关键词池挑一个不同的关键词\n"
+            + "- 每科的 content 必须包含:关键词+具体动作+每天时长+理由\n"
+            + "- 最后一条给出[⚠️ 放一放]的具体模块和时间重分配建议\n"
+            + "- 记住:你的核心价值是告诉用户每科具体怎么做、每天怎么分配时间.\n"
+            + "- 不要罗列知识点;每科一个差异化的时间策略,读者才会觉得有用."
         )
 
     # ================================================================
@@ -710,14 +736,6 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
         user_prompt = (
             "考试名称:" + exam_name + "\n"
             + "当前角色:" + role + "\n\n"
-            + ("## 需要编口诀的考点（来自数据库——请为以下每个考点各编一条口诀）\n\n"
-               + "\n".join(
-                   f"- [{k.get('frequency', '')}] {k.get('kp_name', '')}"
-                   + (f"（{k.get('subject_name', '')}）" if k.get('subject_name') else "")
-                   for k in mnemonic_anchors
-               )
-               + "\n\n"
-               if mnemonic_anchors else "")
             + "请为 " + exam_name + " 的高频考点生成 3-5 条记忆口诀,每条附上逐字拆解映射.\n"
             + "注意:口诀要生活化,有画面感,允许强行谐音,越离谱越好记."
         )
@@ -859,15 +877,6 @@ def main(current_card, exam_name: str, exam_date: str, role: str, target_audienc
             + "当前角色:" + role + "\n"
             + ("目标受众:" + target_audience + "\n" if target_audience else "")
             + ("主题方向:" + theme + "\n" if theme else "")
-            + ("\n## 真实考点（来自数据库——以下内容必须覆盖）\n\n"
-               + "\n".join(
-                   f"- [{k.get('frequency', '')}] {k.get('kp_name', '')}"
-                   + (f"\n  说明：{k['note']}" if k.get('note') else "")
-                   + (f"\n  所属科目：{k['subject_name']}" if k.get('subject_name') else "")
-                   for k in kp_data
-               )
-               + "\n\n请将以上知识点用口语翻译成「学姐讲考点」的风格。数值和定义必须准确。\n"
-               if kp_data else "")
             + "\n请为 " + exam_name + " 生成学习资料卡片内容.\n"
             + "重点:\n"
             + "- 选择 2-3 个高频知识模块\n"

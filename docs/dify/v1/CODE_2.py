@@ -45,7 +45,26 @@ def main(llm_outputs, original_cards):
                     }
                 )
         elif isinstance(item, dict):
-            generated.append(item)
+            # V1.2 fix: Dify Iterator 内 LLM 节点输出格式为 {"text":"...","usage":{...},"finish_reason":"..."}
+            # 需要先提取 text 字段再解析，否则会把整个包装对象当卡片导致内容全空
+            if "text" in item and isinstance(item["text"], str):
+                text = item["text"].strip()
+                if text.startswith("```"):
+                    lines = text.split("\n")
+                    text = "\n".join(
+                        lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                    )
+                try:
+                    parsed = json.loads(text)
+                    generated.append(parsed)
+                except json.JSONDecodeError:
+                    generated.append({
+                        "type": "unknown", "title": "", "subtitle": "",
+                        "days": [], "items": [], "qrcode_url": "",
+                        "_raw": text, "_error": "JSON parse failed after extracting text",
+                    })
+            else:
+                generated.append(item)
         else:
             generated.append(
                 {
