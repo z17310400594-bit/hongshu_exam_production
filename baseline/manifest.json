@@ -1,0 +1,69 @@
+{
+  "created": "2026-06-29",
+  "branch": "feat/v2-knowledge-platform",
+  "source_branch": "master",
+  "uncommitted_changes_at_baseline": 90,
+  "artifacts": {
+    "database_backup": {
+      "file": "backups/policy_fact_baseline_20260629.sql",
+      "container": "policy-db",
+      "image": "postgres:15-alpine",
+      "database": "policy_fact",
+      "tables": 14,
+      "size_bytes": 102605,
+      "lines": 1115,
+      "method": "pg_dump --no-owner --no-privileges",
+      "restore": "docker exec -i policy-db psql -U policy -d policy_fact < backups/policy_fact_baseline_20260629.sql"
+    },
+    "api_samples": {
+      "health": "{\"status\":\"ok\",\"database\":\"connected\"}",
+      "v1_query_certs": "baseline/api-contracts/v1_query_certs.json (3164 bytes)",
+      "v1_query_policy_sample": "baseline/api-contracts/v1_query_policy_sample.json (284 bytes)"
+    },
+    "checksums": {
+      "combined": "baseline/checksums.sha256 (37 entries, all verified)",
+      "source_1_desktop_db": "6 files",
+      "source_2_desktop_data_notes": "19 files",
+      "source_3_handoff_package": "9 files"
+    },
+    "implementation_state": [
+      "docs/implementation/IMPLEMENTATION_STATUS.md",
+      "docs/implementation/DECISIONS.md",
+      "docs/implementation/DATA_ISSUES.md",
+      "docs/implementation/NEXT_TASK.md"
+    ],
+    "backup_readme": "backups/README.md"
+  },
+  "baseline_build": {
+    "typecheck": "1046 errors (all in node_modules, src clean)",
+    "lint": "7 errors + 3 warnings (all pre-existing)",
+    "build_h5": "not yet run (baseline not needed until WP13)"
+  },
+  "keys_inventoried": {
+    "K001": "src/services/dify.ts (Dify API Key, frontend)",
+    "K002": ".env.development TARO_APP_DIFY_API_KEY",
+    "K003": "docs/dify/v3/policy_api.py:41 (DB password default)",
+    "K004": "docs/dify/v3/policy_api.py:46 (CORS wildcard)"
+  },
+  "data_distribution": {
+    "cert_basic": 17,
+    "exam_subject": 31,
+    "knowledge_point": 41,
+    "exam_condition": 32,
+    "exam_question": 26,
+    "exam_question_kp": 26,
+    "policy_clause": 28,
+    "viral_post": 12,
+    "policy_doc": 7,
+    "exam_schedule": 4,
+    "exemption": 6,
+    "registration_policy": 6,
+    "score_management": 6,
+    "years_calc_rule": 5
+  },
+  "ready_for_wp01": false,
+  "wp01_blockers": [
+    "DEC001: 后端代码位置（混合仓 vs 独立仓库）",
+    "DEC002: Python 栈确认（FastAPI + SQLAlchemy 2 + Alembic）"
+  ]
+}
