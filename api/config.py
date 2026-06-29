@@ -1,0 +1,35 @@
+"""Application configuration – all values from environment, no hard-coded defaults for secrets."""
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+    # Database
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_user: str = "v2_user"
+    db_password: str = ""  # REQUIRED – no default in production
+    db_name: str = "knowledge_platform_v2"
+
+    # MinIO
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket: str = "knowledge-assets"
+    minio_secure: bool = False
+
+    # Redis
+    redis_url: str = "redis://localhost:6379/0"
+
+    @property
+    def database_url(self) -> str:
+        return f"postgresql+psycopg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+    @property
+    def database_url_async(self) -> str:
+        return f"postgresql+psycopg_async://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
+
+settings = Settings()
