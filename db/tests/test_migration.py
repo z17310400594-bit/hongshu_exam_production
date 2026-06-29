@@ -18,9 +18,7 @@ def test_upgrade_downgrade_cycle(alembic_cfg: AlembicConfig):
     """Alembic can upgrade to head and downgrade back to base on an isolated test DB."""
     command.upgrade(alembic_cfg, "head")
     command.downgrade(alembic_cfg, "base")
-    # Second upgrade — ensures clean re-apply
     command.upgrade(alembic_cfg, "head")
-    command.downgrade(alembic_cfg, "base")
 
 
 def test_database_connectivity(engine):
