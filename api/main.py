@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -13,6 +13,7 @@ from api.config import settings
 from api.database import engine, sync_engine
 from api.deps import get_current_principal
 from api.services.assets import create_download_url, get_minio_client
+from api.services.knowledge_points import list_approved_fragments_for_knowledge_point
 
 
 @asynccontextmanager
@@ -87,3 +88,22 @@ async def get_asset_version_download_url(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Asset version not found") from exc
     return {"status": "ok", "downloadUrl": url, "expiresInSeconds": 300}
+
+
+@app.get("/knowledge-points/{code}/fragments")
+async def get_knowledge_point_fragments(
+    code: str,
+    principal: Annotated[dict, Depends(get_current_principal)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    try:
+        result = list_approved_fragments_for_knowledge_point(
+            sync_engine,
+            kp_code=code,
+            principal_type=principal["principal_type"],
+            principal_code=principal["principal_code"],
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Knowledge point not found") from exc
+    return {"status": "ok", **result}

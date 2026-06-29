@@ -18,4 +18,8 @@ def test_api_models_import_registers_all_current_tables():
         "knowledge.collection",
         "knowledge.collection_acl",
         "knowledge.fragment",
+        "knowledge.fragment_knowledge_point",
+        "knowledge.knowledge_point",
+        "knowledge.knowledge_point_relation",
+        "knowledge.knowledge_point_scope",
     }.issubset(Base.metadata.tables)
