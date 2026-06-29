@@ -3,6 +3,10 @@
 > 适用于 WP02-WP16。执行 Agent 必须完成“实现自测 + 提交后冷启动复验”并提交可复核证据，才能把工作包标记为 `completed / PASS`。
 > 目标：验收 Agent 只需复跑统一门禁和抽查证据，不应再次发现循环导入、假 Alembic 通过、测试环境污染、文档 commit 过期等基础问题。
 
+## WP06+ MVP 覆盖说明
+
+从 WP06 开始，当前执行口径以 `docs/implementation/MVP_PLAN_WP06_PLUS.md` 为准：保留 migration、后端测试、ACL、安全、真实 API smoke、状态文档等硬底线；未修改前端的后端/数据库包可以暂缓完整前端 `build:h5/typecheck/lint`，但必须在自测报告中明确写明 `Frontend: NOT RUN for MVP backend/db package` 并引用 MVP 计划。WP13-WP16 或任何实际修改前端的工作包，仍必须恢复对应前端验证。
+
 ## 零、一次交付原则
 
 - 不接受“我运行过”“应该没问题”或只给结论；必须给命令、退出码和关键输出。
