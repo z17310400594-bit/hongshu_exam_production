@@ -1,32 +1,29 @@
-"""Alembic environment configuration — reads DB URL from api.config.Settings."""
+"""Alembic environment configuration."""
 
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import api.models.iam  # noqa: F401
+import api.models.knowledge  # noqa: F401
 from api.config import settings
 from api.models import Base
 
-# Alembic Config object
+target_metadata = Base.metadata
+
 config = context.config
 
-# Set up logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override sqlalchemy.url from environment-driven settings ONLY when not already
-# set by a caller (e.g. tests that inject an isolated test-database URL).
 existing = config.get_main_option("sqlalchemy.url")
 placeholder_patterns = ("driver://", "%(DB_URL)s", "user:pass@")
 if existing is None or any(p in (existing or "") for p in placeholder_patterns):
     config.set_main_option("sqlalchemy.url", settings.database_url)
 
-target_metadata = Base.metadata
-
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode (emit SQL without connecting)."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -39,7 +36,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode (connect to DB and execute)."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -55,8 +51,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-import api.models.iam  # noqa: E402,F401
-import api.models.knowledge  # noqa: E402,F401
-from api.models import Base  # noqa: E402
-
-target_metadata = Base.metadata  # noqa: F811

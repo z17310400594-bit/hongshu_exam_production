@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Header
 
 from api.auth import AuthorizationError, check_collection_access
-from api.main import sync_engine
+from api.database import sync_engine
 
 
 async def get_current_principal(
