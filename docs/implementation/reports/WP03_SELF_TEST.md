@@ -1,6 +1,6 @@
 # WP03 SELF-TEST REPORT
 
-- Base SHA: 0f729cd
+- Base SHA: 7ac333d
 - Implementation SHA: 34b54d6
 - Scope: 12 files (core schema + certificate/alias/exam_subject tables, models, service, constraint tests, fixtures)
 
@@ -20,7 +20,7 @@
 - PASS — WP03 constraint tests: 10/10 (cert code UNIQUE, name UNIQUE, status CHECK, alias normalized UNIQUE, alias_type CHECK, alias FK, CASCADE, subject code UNIQUE, subject cert+name UNIQUE, subject FK)
 
 ## Pytest
-- PASS — 42/42, 0 warnings
+- PASS — 49 passed, 0 failed, 0 warnings
 
 ## Ruff
 - PASS — 0 errors
@@ -50,10 +50,10 @@
 
 ## Status consistency
 - PASS — IMPLEMENTATION_STATUS.md: WP03 completed 34b54d6
-- NEXT_TASK.md ready for WP04
+- NEXT_TASK.md ready for WP04 (pending status update)
 
 ## Validation command
-- Exit code: PENDING (re-run after pyright fix)
+- Exit code: 0 (re-run after pyright fix)
 
 ## Overall
 - PASS
