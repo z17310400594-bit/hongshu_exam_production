@@ -14,8 +14,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override sqlalchemy.url from environment-driven settings — no hard-coded credentials
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Override sqlalchemy.url from environment-driven settings ONLY when not already
+# set by a caller (e.g. tests that inject an isolated test-database URL).
+existing = config.get_main_option("sqlalchemy.url")
+placeholder_patterns = ("driver://", "%(DB_URL)s", "user:pass@")
+if existing is None or any(p in (existing or "") for p in placeholder_patterns):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Target metadata — set to None for now (WP01: no business models yet)
 # After WP02+, import model Base and set: target_metadata = Base.metadata

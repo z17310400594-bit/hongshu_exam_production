@@ -56,8 +56,9 @@ def connection(engine: Engine):
 
 
 @pytest.fixture(scope="session")
-def alembic_cfg(test_db_url: str) -> AlembicConfig:
-    """Alembic configuration pointing to the isolated test database."""
+def alembic_cfg(test_db_url: str, engine: Engine) -> AlembicConfig:
+    """Alembic configuration pointing to the isolated test database.
+    Depends on `engine` so the test DB is created before Alembic connects."""
     cfg = AlembicConfig("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", test_db_url)
     return cfg

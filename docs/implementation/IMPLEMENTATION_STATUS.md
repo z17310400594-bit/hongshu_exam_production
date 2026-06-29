@@ -9,7 +9,7 @@
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
 | WP00 | completed | 7fc8e3d | PASS | - | 基线/备份/状态文件（已修正通过审计） |
-| WP01 | completed | c213fda | PASS | - | 后端+DB工程骨架（已修正：Windows异步、测试隔离、凭据清理、ruff/pyright全绿、pytest 6/6） |
+| WP01 | completed | c213fda | FIXING | - | WP01-FIX-2进行中：uvicorn事件循环、alembic真隔离、pytest warning |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
 | WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |

@@ -1,5 +1,7 @@
 """Health endpoint tests."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -21,7 +23,7 @@ async def test_live_returns_ok(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_ready_returns_connected_when_db_reachable(client: AsyncClient):
-    """With the event-loop fix, the async engine should connect to the running dev database."""
+    """The sync engine connects without event-loop issues."""
     resp = await client.get("/health/ready")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok", "database": "connected"}
@@ -29,13 +31,12 @@ async def test_ready_returns_connected_when_db_reachable(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_ready_returns_503_when_db_unreachable(client: AsyncClient, monkeypatch):
-    """When the async engine raises an exception, readiness returns 503."""
+    """When the sync engine raises an exception, readiness returns 503."""
     import api.main
 
-    async def bad_session_factory(_engine):
-        raise OSError("Connection refused")
-
-    monkeypatch.setattr(api.main, "AsyncSession", bad_session_factory)
+    mock_engine = MagicMock()
+    mock_engine.__enter__ = MagicMock(side_effect=OSError("Connection refused"))
+    monkeypatch.setattr(api.main.sync_engine, "connect", MagicMock(return_value=mock_engine))
 
     resp = await client.get("/health/ready")
     assert resp.status_code == 503
