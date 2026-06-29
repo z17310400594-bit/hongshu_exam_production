@@ -8,7 +8,7 @@
 
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
-| WP00 | completed | 82a2ef4 | PASS | DEC001/DEC002 | 基线/备份/状态文件（已修正：密码文本脱敏、恢复验证通过、build:h5编译成功、typecheck更正） |
+| WP00 | completed | 7fc8e3d | PASS | DEC001/DEC002 | 基线/备份/状态文件（已修正通过审计） |
 | WP01 | pending | - | - | WP00 | 后端+DB工程骨架 |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
