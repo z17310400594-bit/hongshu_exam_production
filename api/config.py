@@ -6,17 +6,17 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
-    # Database
+    # Database — host/user/port have dev-friendly defaults; passwords from .env only
     db_host: str = "localhost"
-    db_port: int = 5432
+    db_port: int = 5434
     db_user: str = "v2_user"
-    db_password: str = ""  # REQUIRED – no default in production
+    db_password: str = ""  # overridden by .env
     db_name: str = "knowledge_platform_v2"
 
-    # MinIO
+    # MinIO — endpoint/access-key default for local dev; secrets from .env
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_secret_key: str = ""  # overridden by .env
     minio_bucket: str = "knowledge-assets"
     minio_secure: bool = False
 
