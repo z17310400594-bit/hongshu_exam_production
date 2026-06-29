@@ -12,7 +12,7 @@
 | WP00 | completed | 7fc8e3d | PASS | - | 基线/备份/状态文件（已修正通过审计） |
 | WP01 | completed | b2a0f39 | PASS | - | 后端骨架（pytest 6/6, ruff 0, pyright 0, uvicorn 200 OK, alembic隔离, compose干净） |
 | WP02 | completed | d6253d0 | PASS | - | iam/organization/collection/ACL + HTTP 403 + 循环导入已解（27/27, ruff 0, pyright 0, alembic check clean） |
-| WP03 | pending | - | - | WP02 | certificate/alias/subject |
+| WP03 | in_progress | - | - | - | certificate/alias/exam_subject — 证书、别名、科目主数据 |
 | WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |
 | WP05 | pending | - | - | WP03,WP04 | knowledge_point/relation/scope |
 | WP06 | pending | - | - | WP05 | policy document/version/clause/eligibility |

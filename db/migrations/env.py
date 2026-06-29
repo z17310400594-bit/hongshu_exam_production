@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import api.models.core  # noqa: F401
 import api.models.iam  # noqa: F401
 import api.models.knowledge  # noqa: F401
 from api.config import settings

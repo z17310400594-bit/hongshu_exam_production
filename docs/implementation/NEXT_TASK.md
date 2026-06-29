@@ -1,7 +1,7 @@
 # 下一任务
 
 > 唯一入口任务。新会话恢复时读本文件，选择编号最小且依赖已完成的 pending 包。
-> 执行 Agent 开始前必须阅读并遵守 `SELF_TEST_GATE.md`。
+> 执行 Agent 开始前必须阅读并遵守 `SELF_TEST_GATE.md`；完成前必须提交 `reports/WPxx_SELF_TEST.md`，并在最终提交后完成冷启动复验。
 
 ## 当前状态
 
