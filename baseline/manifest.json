@@ -49,7 +49,7 @@
   "baseline_build": {
     "typecheck": "1046 errors total: 1045 in node_modules + 1 in config/index.ts (TS6198 unused destructured elements)",
     "lint": "7 errors + 3 warnings (all pre-existing)",
-    "build_h5": "compiled successfully with 2 warnings (webpack cache PackFileCacheStrategy, not errors)",
+    "build_h5": "compiled successfully; webpack reported 2 size warnings (asset size limit and entrypoint size limit), plus non-error cache serialization and deprecated hash notices",
     "recorded_at": "2026-06-29"
   },
   "keys_inventoried": {

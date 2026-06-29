@@ -8,8 +8,8 @@
 
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
-| WP00 | completed | 7fc8e3d | PASS | DEC001/DEC002 | 基线/备份/状态文件（已修正通过审计） |
-| WP01 | pending | - | - | WP00 | 后端+DB工程骨架 |
+| WP00 | completed | 7fc8e3d | PASS | - | 基线/备份/状态文件（已修正通过审计） |
+| WP01 | pending | - | - | DEC001/DEC002 | 后端+DB工程骨架 |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
 | WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |
@@ -49,5 +49,5 @@
 
 - `npm run typecheck`：**1046 个 TS 错误**。其中 1045 个在 `node_modules/`（webpack-chain / webpack-dev-server / webpack 的 `.d.ts` 类型冲突），**1 个在 `config/index.ts:7`**（TS6198：All destructured elements are unused）。
 - `npm run lint`：7 errors + 3 warnings，均为 `src/` 既有问题（`confirm` 全局、`<select>` 应用 Picker、hooks deps）。**非本次迁移引入。**
-- `npm run build:h5`：编译成功，2 个 webpack cache PackFileCacheStrategy warning（非 error）。
+- `npm run build:h5`：编译成功；webpack 报告 2 个体积类 warning（asset size limit、entrypoint size limit），另有 cache serialization 与 deprecated hash 提示，均非 error。
 - 后续 WP 若上述指标恶化才视为回归；既有值本身不阻塞迁移。
