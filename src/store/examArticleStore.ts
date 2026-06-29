@@ -90,7 +90,7 @@ interface ExamArticleState {
 }
 
 export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
-  role: '小红书-医考号',
+  role: '内容号',
   examName: '执业医师资格证',
   examDate: '2026-08-02',
   cardSequence: [...PRESET_STANDARD],

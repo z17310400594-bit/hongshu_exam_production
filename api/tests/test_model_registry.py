@@ -13,6 +13,9 @@ def test_api_models_import_registers_all_current_tables():
         "core.certificate_alias",
         "core.exam_subject",
         "iam.organization_unit",
+        "knowledge.asset",
+        "knowledge.asset_version",
         "knowledge.collection",
         "knowledge.collection_acl",
+        "knowledge.fragment",
     }.issubset(Base.metadata.tables)

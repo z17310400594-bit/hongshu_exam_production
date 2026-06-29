@@ -1,0 +1,22 @@
+schedule_id,cert_id,year,registration_start,registration_end,exam_date,result_date,region_note
+sched_physician_2025,physician_licensed,2025,2025/2/8,2025/2/21,2025/6/14,2025/9/1,实践技能6月14-25日（临床）;医学综合8月22-24日;各省审核时间有差异
+sched_pharmacist_2025,pharmacist_licensed,2025,2025/6/16,2025/7/5,2025/10/18,2025/12/1,10月18-19日考试;各地报名时间略有不同 以省人事考试中心为准
+sched_nle_2025,nle,2025,2025/6/16,2025/6/30,2025/9/13,2025/9/19,客观题9月13-14日;主观题10月12日;客观题成绩9月19日公布
+sched_weisheng_2025,physician_title,2025,2024/11/26,2024/12/9,2025/4/12,2025/5/1,4月12/13/19/20日（人机对话）;各地报名时间略有差异
+sched_physician_2026,physician_licensed,2026,,,,,
+sched_pharmacist_2026,pharmacist_licensed,2026,,,,,
+sched_cls1_constructor_2026,cls1_constructor,2026,,,,,
+sched_cls1_costEngineer_2026,cls1_costEngineer,2026,,,,,
+sched_cls1_firePorEngineer_2026,cls1_firePorEngineer,2026,,,,,
+sched_cls2_constructor_2026,cls2_constructor,2026,,,,,
+sched_cls2_costEngineer_2026,cls2_costEngineer,2026,,,,,
+sched_cls2_firePorEngineer_2026,cls2_firePorEngineer,2026,,,,,
+sched_nle_2026,nle,2026,,,,,
+sched_pharmacist_2026,pharmacist,2026,,,,,
+sched_physician_title_2026,physician_title,2026,,,,,
+sched_rehabilitation_2026,rehabilitation,2026,,,,,
+sched_yj_jzs1_2026,yj_jzs1,2026,,,,,
+sched_yj_jzs2_2026,yj_jzs2,2026,,,,,
+sched_yj_jzs3_2026,yj_jzs3,2026,,,,,
+sched_yj_jzs4_2026,yj_jzs4,2026,,,,,
+sched_yj_jzs5_2026,yj_jzs5,2026,,,,,

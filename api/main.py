@@ -3,14 +3,16 @@
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from api.auth import AuthorizationError, check_collection_access
+from api.config import settings
 from api.database import engine, sync_engine
 from api.deps import get_current_principal
+from api.services.assets import create_download_url, get_minio_client
 
 
 @asynccontextmanager
@@ -64,3 +66,24 @@ async def get_collection(code: str, principal: Annotated[dict, Depends(get_curre
         required_permission="read",
     )
     return {"status": "ok", "collection": code}
+
+
+@app.get("/assets/{code}/versions/{version_no}/download-url")
+async def get_asset_version_download_url(
+    code: str,
+    version_no: int,
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    try:
+        url = create_download_url(
+            sync_engine,
+            client=get_minio_client(),
+            bucket=settings.minio_bucket,
+            asset_code=code,
+            version_no=version_no,
+            principal_type=principal["principal_type"],
+            principal_code=principal["principal_code"],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Asset version not found") from exc
+    return {"status": "ok", "downloadUrl": url, "expiresInSeconds": 300}

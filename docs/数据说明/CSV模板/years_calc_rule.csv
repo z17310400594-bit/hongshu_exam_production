@@ -1,0 +1,6 @@
+rule_id,cert_id,education_type,calc_method,exclude_period,applicable_condition,source_clause_id
+rule_physician,physician_licensed,全日制,累计,在校学习时间不计入;试用期从入职起算,从执业注册日期起算;截止考试年度8月31日,
+rule_pharmacist,pharmacist_licensed,全日制,毕业起算,未取得毕业证书前的实习不计入;脱产学习超过半年的该期间不计入,截止考试年度12月31日;后修学历可累计第一学历至报考年度的实际岗位年限,
+rule_nle,nle,全日制,入学起算,不适用,法考无工作年限计算（仅非法学新人需3年法律工作）,
+rule_physician_title,physician_title,全日制,毕业起算,在校学习时间不计入;脱产学习时间不计入,从执业医师注册日期起算;截止考试前一年度12月31日,
+rule_weisheng,physician_title,全日制,毕业起算,在校学习时间不计入;实习期不计入,截止考试前一年度12月31日;适用于卫生专业技术资格考试,

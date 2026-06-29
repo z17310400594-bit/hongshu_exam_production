@@ -13,7 +13,7 @@
 | WP01 | completed | b2a0f39 | PASS | - | 后端骨架（pytest 6/6, ruff 0, pyright 0, uvicorn 200 OK, alembic隔离, compose干净） |
 | WP02 | completed | d6253d0 | PASS | - | iam/organization/collection/ACL + HTTP 403 + 循环导入已解（27/27, ruff 0, pyright 0, alembic check clean） |
 | WP03 | completed | a4e560d + registry fix | PASS | - | certificate/alias/exam_subject — 52 tests, ruff 0, pyright 0, alembic clean, package-level model registry verified |
-| WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |
+| WP04 | in_progress | - | - | WP02 | asset/version/fragment/MinIO |
 | WP05 | pending | - | - | WP03,WP04 | knowledge_point/relation/scope |
 | WP06 | pending | - | - | WP05 | policy document/version/clause/eligibility |
 | WP07 | pending | - | - | WP03 | exam_event/phase/score_rule |

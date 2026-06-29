@@ -656,9 +656,9 @@ export default function ExamArticle() {
               value={store.role}
               onChange={(e) => store.setRole(e.target.value)}
             >
-              <option>小红书-医考号</option>
-              <option>小红书-考研号</option>
-              <option>公众号主编</option>
+              <option>内容号</option>
+              <option>陪考号</option>
+              <option>分析号</option>
             </select>
           </View>
 

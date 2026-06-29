@@ -13,15 +13,39 @@
 - 不接受先标记 `PASS` 再补证据。任何失败都必须恢复或保持 `in_progress`。
 - 不接受状态真相源不一致；`IMPLEMENTATION_STATUS.md`、`NEXT_TASK.md`、最终实现 commit 和测试数字必须一致。
 
+## 规格来源与需求追踪（编码前强制完成）
+
+`NEXT_TASK.md` 只是导航文件，**不是完整业务规格**。执行 Agent 不得只读 NEXT_TASK 后直接编码。
+
+规格读取顺序：
+
+1. `docs/implementation/work-packages/WPxx*.md` 当前工作包文件。
+2. 桌面交接包中的 `07-按步骤实施计划.md`、`02-schema-v2.sql`、`01-数据模型与字段字典.md`、`03-测试数据模板.md`。
+3. `DECISIONS.md`、`DATA_ISSUES.md`。
+4. `NEXT_TASK.md` 仅用于定位当前工作包。
+
+编码前必须在工作包文件中完成需求追踪矩阵：
+
+| ID | 原始要求 | 来源文件/行 | 实现位置 | 测试位置 | 验证证据 | 状态 |
+|---|---|---|---|---|---|---|
+| Rxx | ... | ... | pending | pending | pending | pending |
+
+- 原始规格中的每个“行动”和“验证”条目至少对应一行，不能合并后遗漏子要求。
+- 实现、测试或证据任一为 pending 时不得 PASS。
+- “建了表”和“测试全绿”不能替代查询行为、数据映射、清洗结果、权限或复核状态。
+- 必须列出“未实现/不适用”及依据；空白不代表不适用。
+- 自测报告必须声明 `requirements covered X/X`，且能由矩阵复核。
+
 ## 强制执行顺序
 
-1. 读取 `IMPLEMENTATION_STATUS.md`、`NEXT_TASK.md`、`DECISIONS.md`，确认前置包完成。
-2. 将当前包改为 `in_progress`，只修改本包范围。
-3. 先写失败用例再实现；覆盖正常、拒绝、约束失败和信息泄漏。
-4. 完成第一阶段：专项测试、Python 门禁、迁移门禁、真实服务冒烟、前端回归和安全检查。
-5. 提交实现 commit，记录 `IMPLEMENTATION_SHA`；再更新状态文档，禁止预填不存在的 commit。
-6. 完成第二阶段：从新终端/新 Python 进程复跑统一门禁、模块导入、真实 API 与 diff 检查。
-7. 保存自测报告；全部通过后才允许标记 `completed / PASS` 并路由到下一包。
+1. 读取状态文件和 NEXT_TASK 指向的工作包文件，再逐条读取其中列出的原始来源。
+2. 填完需求追踪矩阵，确认没有遗漏或冲突。
+3. 将当前包改为 `in_progress`，只修改本包范围。
+4. 先写失败用例再实现；覆盖正常、拒绝、约束失败和信息泄漏。
+5. 完成第一阶段：专项测试、Python 门禁、迁移门禁、真实服务冒烟、前端回归和安全检查。
+6. 提交实现 commit，记录 `IMPLEMENTATION_SHA`；再更新状态文档，禁止预填不存在的 commit。
+7. 完成第二阶段：从新终端/新 Python 进程复跑统一门禁、模块导入、真实 API 与 diff 检查。
+8. 保存自测报告；全部通过后才允许标记 `completed / PASS` 并路由到下一包。
 
 任一必测项失败：保持 `in_progress`，修复后从第一阶段重新执行完整门禁；不得只重跑刚失败的一条。
 
@@ -143,6 +167,7 @@ WPxx SELF-TEST REPORT
 Base SHA: <开始固定点>
 Implementation SHA: <最终实现提交>
 Scope: <允许修改范围 + 实际文件列表>
+Requirements coverage: <已覆盖数/总数；引用工作包追踪矩阵>
 Migration: PASS/FAIL（测试库、upgrade/downgrade/upgrade）
 Metadata: PASS/FAIL（表清单、include_schemas、diff_count）
 Cold imports: PASS/FAIL（逐个模块）
