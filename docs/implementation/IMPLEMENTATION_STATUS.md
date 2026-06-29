@@ -8,7 +8,7 @@
 
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
-| WP00 | in_progress | - | - | - | 基线/备份/状态文件 |
+| WP00 | completed | 82a2ef4 | PASS | - | 基线/备份/状态文件 |
 | WP01 | pending | - | - | WP00 | 后端+DB工程骨架 |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
