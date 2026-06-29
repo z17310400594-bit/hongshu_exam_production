@@ -5,7 +5,7 @@
 
 ## WP06+ MVP 覆盖说明
 
-从 WP06 开始，当前执行口径以 `docs/implementation/MVP_PLAN_WP06_PLUS.md` 为准：保留 migration、后端测试、ACL、安全、真实 API smoke、状态文档等硬底线；未修改前端的后端/数据库包可以暂缓完整前端 `build:h5/typecheck/lint`，但必须在自测报告中明确写明 `Frontend: NOT RUN for MVP backend/db package` 并引用 MVP 计划。WP13-WP16 或任何实际修改前端的工作包，仍必须恢复对应前端验证。
+从 WP06 开始，后续所有工作包默认以 `docs/implementation/MVP_PLAN_WP06_PLUS.md` 为当前执行口径，不能在 WP07/WP08/WP09 等后续包自动切回桌面完整生产级模式。保留 migration、后端测试、ACL、安全、真实 API smoke、状态文档等硬底线；未修改前端的后端/数据库包可以暂缓完整前端 `build:h5/typecheck/lint`，但必须在自测报告中明确写明 `Frontend: NOT RUN for MVP backend/db package` 并引用 MVP 计划。实际修改前端的工作包按修改范围做 MVP 前端验证；完整生产级前端/黄金集/双读/灰度门禁只有在用户明确批准进入生产化阶段后恢复。
 
 ## 零、一次交付原则
 

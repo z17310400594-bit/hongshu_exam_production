@@ -1,6 +1,8 @@
-# WP06+ MVP 实施计划
+# WP06 之后统一 MVP 实施计划
 
-> 适用范围：从 WP06 开始。WP00-WP04 保持已完成的生产级基础建设口径；WP05 是 MVP 转向的过渡包，已完成。后续执行 Agent 必须先读本文，再读桌面交接包和当前工作包文件。
+> 适用范围：从 WP06 开始的所有后续工作包，直到用户明确宣布进入生产化验收/灰度阶段为止。WP00-WP04 保持已完成的生产级基础建设口径；WP05 是 MVP 转向的过渡包，已完成。后续执行 Agent 必须先读本文，再读桌面交接包和当前工作包文件。
+>
+> 硬规则：WP06 完成后，WP07、WP08、WP09……不得自动切回桌面计划书的完整生产级模式；每个下一包入口都必须继续引用本文。
 
 ## 1. 为什么从 WP06 开始切 MVP
 
@@ -20,9 +22,9 @@ asset/version/fragment
 
 ## 2. 执行口径优先级
 
-从 WP06 开始，执行 Agent 按以下优先级理解需求：
+从 WP06 开始，执行 Agent 按以下优先级理解需求。这个优先级会持续适用于 WP07、WP08、WP09 以及后续包，除非用户明确修改口径。
 
-1. `docs/implementation/MVP_PLAN_WP06_PLUS.md`：当前 MVP 执行口径。
+1. `docs/implementation/MVP_PLAN_WP06_PLUS.md`：WP06 之后所有后续包的当前 MVP 执行口径。
 2. `docs/implementation/NEXT_TASK.md`：下一包入口。
 3. `docs/implementation/work-packages/WPxx.md`：当前包追踪矩阵。
 4. 桌面交接包：目标架构和字段来源。
@@ -46,7 +48,7 @@ asset/version/fragment
 
 ## 4. MVP 暂缓项
 
-除非当前包明确修改前端或用户特别要求，WP06-WP12 后端/数据库包暂缓：
+除非当前包明确修改前端或用户特别要求，WP06 之后的 MVP 包都暂缓：
 
 - 每包都跑完整前端 `build:h5/typecheck/lint`；
 - 100 条黄金问题集；
@@ -57,7 +59,7 @@ asset/version/fragment
 - 完整 CSV/staging 全量导入；
 - 所有前端页面一次性接入。
 
-这些不删除，后移到 WP13-WP16 或用户指定的生产化阶段。
+这些不删除，后移到用户明确批准的生产化阶段；不能由执行 Agent 在 WP07/WP08/WP09 等后续包中自行恢复完整模式。
 
 ## 5. WP06-WP14 MVP 工作包边界
 
@@ -73,7 +75,7 @@ asset/version/fragment
 | WP13 | 前端最小接入 | 统一 httpClient；feature flag；接一个最小查询流 | 全页面重构 |
 | WP14 | 生成流程最小后端化 | 前端不直连 Dify；后端任务 + 引用展示最小链路 | 完整 SSE、审核大后台 |
 
-WP15/WP16 不属于 MVP 开发包，是生产化验收包；只有 MVP 闭环跑通后再进入。
+WP15/WP16 属于生产化验收候选包；只有 MVP 闭环跑通且用户明确批准后才能进入。执行 Agent 不得因为编号推进到 WP15/WP16 就自行恢复完整生产模式。
 
 ## 6. 每包最小自测模板
 
@@ -111,9 +113,22 @@ fresh process Base.metadata.tables 包含本包表
 
 - 当前包没有修改前端：报告写 `Frontend: NOT RUN for MVP backend/db package`，并引用本文；
 - 当前包修改前端：必须跑 `npm.cmd run build:h5`，并至少检查相关文件不新增 type/lint 问题；
-- WP13-WP16：按前端/生产化门禁恢复完整 build/typecheck/lint。
+- WP13/WP14 若实际修改前端或生成流程，按“修改到哪里验证到哪里”的 MVP 前端验证执行，不自动恢复生产级全量验收；
+- WP15/WP16 只有在用户明确宣布进入生产化验收/灰度阶段后，才按完整生产门禁执行。
 
-## 7. WP06 执行提示
+## 7. 下一包路由规则
+
+每完成一个工作包，更新 `NEXT_TASK.md` 时必须保留以下语义：
+
+```text
+执行 Agent 必须先读取 docs/implementation/MVP_PLAN_WP06_PLUS.md。
+从 WP06 起后续包持续按 MVP 口径执行。
+不得因为进入 WP07/WP08/WP09 等后续编号而切回桌面完整生产级计划。
+```
+
+如果某个后续包确实需要恢复完整生产级门禁，必须由用户明确批准，并在 `DECISIONS.md` 记录。
+
+## 8. WP06 执行提示
 
 WP06 不要一口气实现完整政策事实平台。先做：
 
@@ -130,6 +145,6 @@ WP06 不要一口气实现完整政策事实平台。先做：
 feat: add policy rules MVP
 ```
 
-## 8. 给执行 Agent 的一句话
+## 9. 给执行 Agent 的一句话
 
-从 WP06 开始，不要把桌面计划书里的生产级完整迁移一次性做完。每包只打通当前 MVP 链路，保留数据安全、权限、migration 和测试硬底线；黄金集、双读、灰度和全量前端验收后移到 WP15/WP16。
+从 WP06 开始，后续所有包默认都是 MVP 执行。不要在 WP07、WP08、WP09 或后续包又切回桌面计划书里的生产级完整迁移。每包只打通当前 MVP 链路，保留数据安全、权限、migration 和测试硬底线；黄金集、双读、灰度和全量前端验收后移到用户明确批准的生产化阶段。
