@@ -1,43 +1,36 @@
 # 下一任务
 
-> 唯一入口任务。新会话恢复时读本文件，执行其中第一个 in_progress 任务。
+> 唯一入口任务。新会话恢复时读本文件，选择编号最小且依赖已完成的 pending 包。
 
 ## 当前状态
 
 **无 in_progress 工作包。**
 
-- **WP00** 已完成、提交并验证通过（主体提交 `82a2ef4`，审计修正 `7fc8e3d`）。
-- **WP01** 被 DEC001（后端代码位置）和 DEC002（Python 栈选择）阻塞，待用户确认后开始。
+- **WP00** ✅ 已完成（`82a2ef4` → `ec82843`）
+- **WP01** ✅ 已完成（`cf244d4`）：16 文件，pytest 6/6，alembic 升级/降级通过，compose 三个容器运行正常
 
-## 下一动作
+## 下一包（WP02：组织、知识集合和 ACL）
 
-1. 用户确认 DEC001 / DEC002。
-2. 将 WP01 状态改为 `in_progress`。
-3. 按 WP01 范围实施并在验证通过后独立提交。
+**前置**：WP01 已完成，无阻塞。
 
-## 下一包（WP01，需先解锁 DEC001/DEC002）
+WP02 内容（07 计划）：
 
-**前置**：DEC001（后端位置）、DEC002（Python 栈）由用户确认。
+- 创建 `iam.organization_unit`、`knowledge.collection`、`collection_acl`
+- 实现最小用户身份适配器和权限服务
+- 写 public/internal/confidential/restricted 四级保密 fixtures
+- 实现检索前授权函数，不接入检索正文
+- **不创建证书、资产等其他业务表**
 
-WP01 内容（07 计划）：
+WP02 验证门槛：
 
-- 创建 `api/`、`db/migrations/`、`db/tests/`、`infra/compose.yaml`；
-- 初始化 FastAPI + SQLAlchemy 2 + Alembic + psycopg pool；
-- 建 PostgreSQL、MinIO、Redis 本地容器；
-- 增加 `/health/live` 和 `/health/ready`；
-- 创建最小 CI/验证脚本；
-- **不创建业务表**。
+- 教材部能读内部教材集合
+- 运营部不能读 restricted 教辅集合
+- 无权请求返回 403，响应和日志不包含集合标题或正文
+- 所有 FK/CHECK 失败用例通过
 
-WP01 验证门槛：
-
-- 空环境 `docker compose up` 成功；
-- Alembic 可 upgrade 和 downgrade 一个空 migration；
-- ready 检查数据库，live 不依赖数据库；
-- API 测试、前端原有 build/typecheck/lint 均通过（不恶化基线）。
-
-WP01 停止点：提交 `chore: scaffold v2 api and migration runtime`。
+WP02 停止点：提交 `feat: add organization collections and acl`。
 
 ## compact / 新会话边界提示
 
-- WP00 提交完成后适合 compact 或开新会话。
-- 禁止在 migration 半途、数据回填、API 半切换、测试失败时 compact。
+- WP01 完成后适合 compact 或开新会话。
+- 禁止在 migration 半途、数据回填、API 半切换时 compact。

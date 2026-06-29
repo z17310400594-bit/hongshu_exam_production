@@ -9,7 +9,7 @@
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
 | WP00 | completed | 7fc8e3d | PASS | - | 基线/备份/状态文件（已修正通过审计） |
-| WP01 | pending | - | - | DEC001/DEC002 | 后端+DB工程骨架 |
+| WP01 | completed | cf244d4 | PASS | - | 后端+DB工程骨架（16文件/430行；pytest 6/6；alembic升降过；compose起） |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
 | WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |
