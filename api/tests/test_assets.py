@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import socket
+import subprocess
+import time
 import warnings
 from collections.abc import Generator
 from typing import Any
@@ -10,19 +13,26 @@ from urllib.parse import urlparse, urlunparse
 import pytest
 from alembic import command
 from alembic.config import Config as AlembicConfig
+from minio import Minio
 from minio.deleteobjects import DeleteObject
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
+from api.auth import AuthorizationError
 from api.config import settings
 from api.services.assets import (
     create_asset,
     create_download_url,
     create_fragment,
-    get_minio_client,
     upload_asset_version,
 )
 from db.tests.fixtures_wp02 import seed_fixtures as seed_wp02
+
+TEST_MINIO_CONTAINER = "v2-minio-wp04-test"
+TEST_MINIO_ENDPOINT = "localhost:9100"
+TEST_MINIO_ACCESS_KEY = "minioadmin"
+TEST_MINIO_SECRET_KEY = "wp04test123"
+TEST_MINIO_IMAGE = "minio/minio:RELEASE.2024-11-07T00-52-20Z"
 
 
 class FakeMinio:
@@ -82,9 +92,57 @@ def fake_minio() -> FakeMinio:
     return FakeMinio()
 
 
+def _is_test_minio_port_open() -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", 9100), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def _ensure_test_minio_container() -> bool:
+    """Start an isolated, non-persistent MinIO container if port 9100 is closed."""
+    if _is_test_minio_port_open():
+        return False
+    subprocess.run(["docker", "rm", "-f", TEST_MINIO_CONTAINER], check=False, capture_output=True, text=True)
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            TEST_MINIO_CONTAINER,
+            "-p",
+            "9100:9000",
+            "-e",
+            f"MINIO_ROOT_USER={TEST_MINIO_ACCESS_KEY}",
+            "-e",
+            f"MINIO_ROOT_PASSWORD={TEST_MINIO_SECRET_KEY}",
+            TEST_MINIO_IMAGE,
+            "server",
+            "/data",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for _ in range(30):
+        if _is_test_minio_port_open():
+            return True
+        time.sleep(0.5)
+    raise RuntimeError("WP04 MinIO test container did not become ready")
+
+
 @pytest.fixture(scope="module")
 def real_minio_bucket() -> Generator[tuple[Any, str], None, None]:
-    client = get_minio_client()
+    started_container = _ensure_test_minio_container()
+    client = Minio(
+        TEST_MINIO_ENDPOINT,
+        access_key=TEST_MINIO_ACCESS_KEY,
+        secret_key=TEST_MINIO_SECRET_KEY,
+        secure=False,
+    )
     bucket = "knowledge-assets-test-wp04"
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
@@ -97,6 +155,8 @@ def real_minio_bucket() -> Generator[tuple[Any, str], None, None]:
             list(client.remove_objects(bucket, objects))
         if client.bucket_exists(bucket):
             client.remove_bucket(bucket)
+        if started_container:
+            subprocess.run(["docker", "rm", "-f", TEST_MINIO_CONTAINER], check=False, capture_output=True, text=True)
 
 
 def test_upload_creates_two_versions_and_generated_standard_keys(engine: Engine, fake_minio: FakeMinio):
@@ -279,7 +339,7 @@ def test_download_url_requires_acl_before_presign(engine: Engine, fake_minio: Fa
     assert "X-Amz-Expires=300" in url
     assert len(fake_minio.presigned) == 1
 
-    with pytest.raises(Exception, match="Access denied"):
+    with pytest.raises(AuthorizationError) as exc:
         create_download_url(
             engine,
             client=fake_minio,
@@ -289,6 +349,7 @@ def test_download_url_requires_acl_before_presign(engine: Engine, fake_minio: Fa
             principal_type="org",
             principal_code="org_operations",
         )
+    assert exc.value.detail == "Access denied"
     assert len(fake_minio.presigned) == 1
 
 
