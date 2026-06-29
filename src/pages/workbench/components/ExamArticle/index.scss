@@ -1499,3 +1499,52 @@
   background: #dbeafe;
   color: #1e40af;
 }
+
+.citation-list {
+  margin-top: 12rpx;
+  padding: 12rpx;
+  border: 1px solid #E2E8F0;
+  border-radius: 8rpx;
+  background: #F8FAFC;
+
+  &.empty {
+    border-color: #FCA5A5;
+    background: #FEF2F2;
+  }
+}
+
+.citation-title {
+  display: block;
+  font-size: 20rpx;
+  color: #475569;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+}
+
+.citation-empty {
+  font-size: 20rpx;
+  color: #B91C1C;
+}
+
+.citation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 8rpx 0;
+  border-top: 1px dashed #CBD5E1;
+
+  &:first-of-type {
+    border-top: none;
+  }
+}
+
+.citation-main {
+  font-size: 22rpx;
+  color: #1E293B;
+  font-weight: 600;
+}
+
+.citation-meta {
+  font-size: 18rpx;
+  color: #64748B;
+}

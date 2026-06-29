@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Dify — backend-only credentials. Empty values keep the WP14 MVP on the
+    # local deterministic draft generator; browsers must never receive this key.
+    dify_api_url: str = ""
+    dify_api_key: str = ""
+
     @property
     def database_url(self) -> str:
         return f"postgresql+psycopg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

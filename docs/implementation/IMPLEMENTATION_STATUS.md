@@ -15,17 +15,17 @@
 | WP03 | completed | a4e560d + registry fix | PASS | - | certificate/alias/exam_subject — 52 tests, ruff 0, pyright 0, alembic clean, package-level model registry verified |
 | WP04 | completed | 125677b | PASS | - | asset/version/fragment/MinIO（69 tests, real MinIO fixture, API smoke, metadata diff_count=0） |
 | WP05 | completed | 63dd920 | PASS | - | knowledge_point/relation/scope/fragment mapping MVP（77 tests, API smoke, metadata diff_count=0） |
-| WP06 | pending | - | - | WP05 | policy document/version/clause/eligibility |
-| WP07 | pending | - | - | WP03 | exam_event/phase/score_rule |
-| WP08 | pending | - | - | WP05 | content product/version/chapter |
-| WP09 | pending | - | - | WP05,WP07 | paper/question/kp |
-| WP10 | pending | - | - | WP04,WP05 | generation run/citation/output + analytics |
-| WP11 | pending | - | - | WP03-WP10 | staging/validation/数据迁移（可拆11A-11D）|
-| WP12 | pending | - | - | WP06-WP11 | API V2 查询+生成 |
-| WP13 | pending | - | - | WP12 | Taro 前端低风险接入 |
-| WP14 | pending | - | - | WP10,WP12,WP13 | 生成流程+审核接入 |
-| WP15 | pending | - | - | WP12-WP14 | 双读/评测/安全验收 |
-| WP16 | pending | - | - | WP15 | 灰度/恢复演练/旧库退役 |
+| WP06 | completed | local-not-committed | PASS | - | policy document/version/clause/eligibility MVP（87 tests, ruff 0, pyright 0, alembic clean） |
+| WP07 | completed | local-not-committed | PASS | - | exam_event/phase/score_rule MVP（95 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP08 | completed | local-not-committed | PASS | - | content product/version/chapter MVP（103 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP09 | completed | local-not-committed | PASS | - | paper/question/question_kp MVP（110 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP10 | completed | local-not-committed | PASS | - | generation run/citation/output MVP（117 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP11 | completed | local-not-committed | PASS | - | import_batch/validation_error MVP（125 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP12 | completed | local-not-committed | PASS | - | API V2 certificates/eligibility/knowledge search MVP（130 tests, ruff 0, pyright 0, alembic clean, smoke OK） |
+| WP13 | completed | local-not-committed | PASS | - | Taro V2 certificate/exam MVP 接入（H5 build OK, frontend type/lint no new scoped issues, backend 130 tests, ruff 0, pyright 0, alembic clean） |
+| WP14 | completed | local-not-committed | PASS | - | 生成流程最小后端化（133 tests, ruff 0, pyright 0, alembic clean, real API smoke OK, H5 build OK, frontend type/lint no new scoped issues） |
+| WP15 | completed | local-not-committed | PASS | - | 双读/黄金集/安全验收框架 MVP（138 tests, ruff 0, pyright 0, alembic clean, acceptance sample PASS, secret scan PASS） |
+| WP16 | completed | local-not-committed | PASS | - | 灰度/恢复/回滚/旧库只读校验框架 MVP（142 tests, ruff 0, pyright 0, alembic clean, release sample PASS, secret scan PASS） |
 
 ## 实施分支
 

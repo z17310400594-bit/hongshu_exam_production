@@ -47,6 +47,20 @@ export interface CardItem {
   content: string
 }
 
+/** 生成引用 */
+export interface GenerationCitation {
+  assetCode: string
+  assetTitle?: string
+  assetType?: string
+  versionNo?: number
+  fragmentCode: string
+  heading?: string | null
+  pageFrom?: number | null
+  pageTo?: number | null
+  confidentiality?: string
+  quote?: string
+}
+
 /** 单张卡片数据 */
 export interface CardData {
   type: CardType
@@ -56,6 +70,7 @@ export interface CardData {
   items: CardItem[]
   qrcode_url: string
   study_material?: StudyMaterialItem[]
+  citations?: GenerationCitation[]
   /** V3.2 plan 卡片专属:过来人心得(2-3句口语化备考经验) */
   mentor_note?: string
 }
@@ -109,6 +124,7 @@ export interface ProgressStep {
 
 /** Dify Workflow 输入参数 */
 export interface DifyGenerateParams {
+  certificateCode?: string
   examName: string
   examDate: string
   cardSequence: CardType[]
@@ -121,4 +137,8 @@ export interface DifyGenerateParams {
 }
 
 /** Dify Workflow 输出（预期结构，后续根据实际情况调整） */
-export type DifyGenerateResult = GeneratedContent
+export type DifyGenerateResult = GeneratedContent & {
+  runId?: number
+  status?: string
+  citations?: GenerationCitation[]
+}

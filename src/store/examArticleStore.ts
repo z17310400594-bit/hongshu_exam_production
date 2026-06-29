@@ -11,6 +11,7 @@ import { deepClone } from '@/utils/validation'
 interface ExamArticleState {
   // 输入参数
   role: string
+  certificateCode: string
   examName: string
   examDate: string
   cardSequence: CardType[]
@@ -45,6 +46,7 @@ interface ExamArticleState {
 
   // 动作
   setRole: (role: string) => void
+  setCertificateCode: (code: string) => void
   setExamName: (name: string) => void
   setExamDate: (date: string) => void
   setCardSequence: (seq: CardType[]) => void
@@ -91,6 +93,7 @@ interface ExamArticleState {
 
 export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
   role: '内容号',
+  certificateCode: '',
   examName: '执业医师资格证',
   examDate: '2026-08-02',
   cardSequence: [...PRESET_STANDARD],
@@ -116,6 +119,7 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
   editingCardIndex: -1,
 
   setRole: (role: string) => set({ role }),
+  setCertificateCode: (code: string) => set({ certificateCode: code }),
   setExamName: (name: string) => set({ examName: name }),
   setExamDate: (date: string) => set({ examDate: date }),
   setCardSequence: (seq: CardType[]) => set({ cardSequence: seq }),
@@ -176,11 +180,12 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
   },
 
   startGenerate: async () => {
-    const { examName, examDate, cardSequence, targetAudience, targetAudienceCustom, theme, themeCustom } = get()
+    const { certificateCode, examName, examDate, cardSequence, targetAudience, targetAudienceCustom, theme, themeCustom } = get()
     set({ isGenerating: true, progressSteps: [] })
 
     const result = await generateCards(
       {
+        certificateCode,
         examName,
         examDate,
         cardSequence,

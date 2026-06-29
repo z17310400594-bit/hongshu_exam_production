@@ -10,12 +10,26 @@
 - **WP03** ✅ 已完成（`a4e560d` + registry fix）：52 tests, validate.bat ALL CHECKS PASSED
 - **WP04** ✅ 已完成（`125677b`）：69 tests, real MinIO fixture, API smoke, validate.bat ALL CHECKS PASSED
 - **WP05** ✅ 已完成（`63dd920`）：77 tests, knowledge point MVP API smoke, metadata diff_count=0
+- **WP06** ✅ 已完成（local-not-committed）：87 tests, policy rules MVP API/DB checks, ruff 0, pyright 0, alembic clean
+- **WP07** ✅ 已完成（local-not-committed）：95 tests, exam schedule MVP API/DB checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP08** ✅ 已完成（local-not-committed）：103 tests, content chapter MVP API/DB checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP09** ✅ 已完成（local-not-committed）：110 tests, question bank MVP API/DB checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP10** ✅ 已完成（local-not-committed）：117 tests, generation citation MVP API/DB checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP11** ✅ 已完成（local-not-committed）：125 tests, import validation MVP API/DB checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP12** ✅ 已完成（local-not-committed）：130 tests, API V2 query MVP checks, ruff 0, pyright 0, alembic clean, smoke OK
+- **WP13** ✅ 已完成（local-not-committed）：Taro V2 certificate/exam MVP, H5 build OK, frontend type/lint no new scoped issues, backend 130 tests
+- **WP14** ✅ 已完成（local-not-committed）：生成流程最小后端化，133 tests, ruff 0, pyright 0, alembic clean, real API smoke OK, H5 build OK, frontend type/lint no new scoped issues
+- **WP15** ✅ 已完成（local-not-committed）：双读/黄金集/安全验收框架 MVP，138 tests, ruff 0, pyright 0, alembic clean, acceptance sample PASS, secret scan PASS
+- **WP16** ✅ 已完成（local-not-committed）：灰度/恢复/回滚/旧库只读校验框架 MVP，142 tests, ruff 0, pyright 0, alembic clean, release sample PASS, secret scan PASS
 
-## 下一包（WP06：政策版本、条款和报考规则）
+## 下一步（V2 MVP 工作包已全部完成）
 
-**前置**：WP05 已完成。
-建议先创建 `work-packages/WP06.md`，按 MVP 节奏补全需求追踪矩阵后再编码。
+WP00-WP16 已按本地 MVP 口径完成，当前尚未统一提交。
 
-执行 Agent 不得仅按本文件摘要实现；必须先读取 `docs/implementation/MVP_PLAN_WP06_PLUS.md`，再读取桌面交接包和工作包文件。
-MVP 节奏从 WP06 起持续适用于后续所有包：WP06 完成后，WP07/WP08/WP09 等不得自动切回桌面完整生产级计划。当前 WP06 优先打通政策文档/版本/条款/eligibility 到知识点和片段引用的最小闭环；不要一次性展开生产级全量导入、黄金集和前端大改。
-停止点：提交 `feat: add policy rules MVP`。
+建议下一步由用户明确选择：
+
+1. 统一 review 并提交 WP06-WP16 本地改动；
+2. 补真实数据：100 条黄金集、业务负责人差异确认、生产量级恢复/压测证据；
+3. 接入真实 Dify/生产网关/灰度系统。
+
+停止点：等待用户确认是否提交或进入真实生产化补数/验收阶段。

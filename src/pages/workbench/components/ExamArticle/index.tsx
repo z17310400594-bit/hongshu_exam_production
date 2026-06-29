@@ -21,7 +21,7 @@ function getCountdown(examDate: string): string {
 export default function ExamArticle() {
   const store = useExamArticleStore()
   const { exportAll, exportSingle, exportLayered } = useCardExport()
-  const { certOptions, loading: certsLoading } = useCertPresets()
+  const { certOptions, loading: certsLoading, isV2Enabled, resolveExamDate } = useCertPresets()
 
   // 本地 UI 状态
   const [showConfirm, setShowConfirm] = useState(false)
@@ -39,17 +39,23 @@ export default function ExamArticle() {
     if (THEME_PRESETS.length > 0 && !store.theme) {
       store.setTheme(THEME_PRESETS[0])
     }
-  }, [])
+  }, [store])
 
   // DB 证书加载完成后自动选中第一条
   useEffect(() => {
-    if (!certsLoading && certOptions.length > 0) {
+    let cancelled = false
+    if (!certsLoading && certOptions.length > 0 && !selectedPreset && examMode === 'preset') {
       const firstCat = certOptions[0]
       setSelectedPreset(firstCat.id)
+      store.setCertificateCode(firstCat.id)
       store.setExamName(firstCat.name)
       store.setExamDate(firstCat.examDate)
+      resolveExamDate(firstCat.id).then(date => {
+        if (!cancelled && date) store.setExamDate(date)
+      })
     }
-  }, [certsLoading])
+    return () => { cancelled = true }
+  }, [certsLoading, certOptions, selectedPreset, examMode, resolveExamDate, store])
   const [reviewFeedback, setReviewFeedback] = useState('')
   const [reviewProblemType, setReviewProblemType] = useState<'sensitive' | 'duplicate'>('sensitive')
   // V1.1 校验
@@ -120,6 +126,12 @@ export default function ExamArticle() {
 
   // ========== 审核 ==========
   const approveReview = useCallback(() => {
+    const citations = store.pendingContent?.cards.flatMap(card => card.citations ?? []) ?? []
+    if (citations.length === 0) {
+      setToastMsg('❌ 当前生成结果没有资料引用，不能通过审核')
+      setTimeout(() => setToastMsg(''), 2000)
+      return
+    }
     store.approveReview()
   }, [store])
 
@@ -491,6 +503,7 @@ export default function ExamArticle() {
     return store.pendingContent.cards.map((card, i) => {
       const isEditing = store.editingCardIndex === i
       const text = getCardPlainText(card)
+      const citations = card.citations ?? []
 
       const cardIssues = getCardIssues(i)
 
@@ -613,6 +626,25 @@ export default function ExamArticle() {
           ) : (
             <Text className='review-text-block'>{text}</Text>
           )}
+          <View className={`citation-list ${citations.length === 0 ? 'empty' : ''}`}>
+            <Text className='citation-title'>引用资料</Text>
+            {citations.length === 0 ? (
+              <Text className='citation-empty'>暂无引用，不能审核通过</Text>
+            ) : (
+              citations.map((citation, ci) => (
+                <View key={ci} className='citation-item'>
+                  <Text className='citation-main'>
+                    {citation.assetTitle || citation.assetCode} v{citation.versionNo ?? 1}
+                    {' · '}
+                    {citation.heading || citation.fragmentCode}
+                  </Text>
+                  <Text className='citation-meta'>
+                    页码 {citation.pageFrom ?? '—'}-{citation.pageTo ?? '—'} · 密级 {citation.confidentiality ?? 'internal'}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
         </View>
       )
     })
@@ -664,7 +696,7 @@ export default function ExamArticle() {
 
           {/* 考试预设下拉 */}
           <View className='form-group'>
-            <Text className='form-label'>考试类型</Text>
+            <Text className='form-label'>考试类型{isV2Enabled ? '（V2）' : '（旧接口）'}</Text>
             <select
               className='form-select'
               value={examMode === 'preset' ? selectedPreset : '__custom__'}
@@ -673,13 +705,18 @@ export default function ExamArticle() {
                 if (val === '__custom__') {
                   setExamMode('custom')
                   setSelectedPreset('')
+                  store.setCertificateCode('')
                 } else if (val) {
                   setExamMode('preset')
                   setSelectedPreset(val)
                   const cat = certOptions.find(c => c.id === val)
                   if (cat) {
+                    store.setCertificateCode(cat.id)
                     store.setExamName(cat.name)
                     store.setExamDate(cat.examDate)
+                    resolveExamDate(cat.id).then(date => {
+                      if (date) store.setExamDate(date)
+                    })
                     if (cat.recommendedPreset) {
                       store.setCardSequence([...cat.recommendedPreset])
                     }
@@ -687,6 +724,7 @@ export default function ExamArticle() {
                 } else {
                   setExamMode('preset')
                   setSelectedPreset('')
+                  store.setCertificateCode('')
                   store.setExamName('')
                 }
               }}
