@@ -1,13 +1,14 @@
 # 下一任务
 
 > 唯一入口任务。新会话恢复时读本文件，选择编号最小且依赖已完成的 pending 包。
+> 执行 Agent 开始前必须阅读并遵守 `SELF_TEST_GATE.md`；未提交完整自测报告不得标记完成或进入下一包。
 
 ## 当前状态
 
 **无 in_progress 工作包。**
 
 - **WP00** ✅ 已完成（`82a2ef4` → `ec82843`）
-- **WP01** ✅ 已完成（`cf244d4`）：16 文件，pytest 6/6，alembic 升级/降级通过，compose 三个容器运行正常
+- **WP01** ✅ 已完成（`b2a0f39`）：pytest 6/6, ruff 0, pyright 0, uvicorn 200 OK, alembic 隔离到测试库, compose `${VAR:?}` 无硬编码凭据
 
 ## 下一包（WP02：组织、知识集合和 ACL）
 
@@ -27,6 +28,8 @@ WP02 验证门槛：
 - 运营部不能读 restricted 教辅集合
 - 无权请求返回 403，响应和日志不包含集合标题或正文
 - 所有 FK/CHECK 失败用例通过
+
+WP02 完成前必须执行 `SELF_TEST_GATE.md` 的通用门禁和专项自测，并输出 `WP02 SELF-TEST REPORT`。任一项失败时保持 `in_progress`。
 
 WP02 停止点：提交 `feat: add organization collections and acl`。
 
