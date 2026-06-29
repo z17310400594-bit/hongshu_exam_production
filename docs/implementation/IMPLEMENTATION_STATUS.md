@@ -11,7 +11,7 @@
 |---|---|---|---|---|---|
 | WP00 | completed | 7fc8e3d | PASS | - | 基线/备份/状态文件（已修正通过审计） |
 | WP01 | completed | b2a0f39 | PASS | - | 后端骨架（pytest 6/6, ruff 0, pyright 0, uvicorn 200 OK, alembic隔离, compose干净） |
-| WP02 | in_progress | b2a0f39 | PASS | - | iam/organization/collection/ACL — 23/23 tests, ruff 0, pyright 0 |
+| WP02 | completed | 8633068 | PASS | - | iam/organization/collection/ACL — 23/23 tests, ruff 0, pyright 0, uvicorn live/ready ok |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
 | WP04 | pending | - | - | WP02 | asset/version/fragment/MinIO |
 | WP05 | pending | - | - | WP03,WP04 | knowledge_point/relation/scope |
