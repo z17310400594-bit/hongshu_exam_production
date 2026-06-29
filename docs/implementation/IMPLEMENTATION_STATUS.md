@@ -1,4 +1,4 @@
-# V2 实施状态
+﻿# V2 实施状态
 
 > 本文件是 V2 迁移的唯一状态真相源。状态只能是 `pending / in_progress / completed / blocked`。
 > 每包开始改 `in_progress`，结束改 `completed` 并填 commit 与验证结果。
@@ -14,7 +14,7 @@
 | WP02 | completed | d6253d0 | PASS | - | iam/organization/collection/ACL + HTTP 403 + 循环导入已解（27/27, ruff 0, pyright 0, alembic check clean） |
 | WP03 | completed | a4e560d + registry fix | PASS | - | certificate/alias/exam_subject — 52 tests, ruff 0, pyright 0, alembic clean, package-level model registry verified |
 | WP04 | completed | 125677b | PASS | - | asset/version/fragment/MinIO（69 tests, real MinIO fixture, API smoke, metadata diff_count=0） |
-| WP05 | pending | - | - | WP03,WP04 | knowledge_point/relation/scope |
+| WP05 | completed | 63dd920 | PASS | - | knowledge_point/relation/scope/fragment mapping MVP（77 tests, API smoke, metadata diff_count=0） |
 | WP06 | pending | - | - | WP05 | policy document/version/clause/eligibility |
 | WP07 | pending | - | - | WP03 | exam_event/phase/score_rule |
 | WP08 | pending | - | - | WP05 | content product/version/chapter |
