@@ -100,3 +100,12 @@ def test_acl_pk_prevents_duplicate(engine: Engine):
             conn.execute(text("INSERT INTO knowledge.collection_acl (collection_id, principal_type, principal_code, permission) SELECT id, 'org', 'sales', 'read' FROM knowledge.collection WHERE code='col_acl3'"))  # noqa: E501
             conn.commit()
         conn.rollback()
+
+
+def test_acl_collection_fk_must_exist(engine: Engine):
+    """collection_acl must reference an existing collection."""
+    with pytest.raises(IntegrityError):  # noqa: SIM117
+        with engine.connect() as conn:
+            conn.execute(text("INSERT INTO knowledge.collection_acl (collection_id, principal_type, principal_code, permission) VALUES (99999, 'org', 'test', 'read')"))  # noqa: E501
+            conn.commit()
+

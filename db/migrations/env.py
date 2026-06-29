@@ -6,6 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from api.config import settings
+from api.models import Base
 
 # Alembic Config object
 config = context.config
@@ -21,9 +22,7 @@ placeholder_patterns = ("driver://", "%(DB_URL)s", "user:pass@")
 if existing is None or any(p in (existing or "") for p in placeholder_patterns):
     config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# Target metadata — set to None for now (WP01: no business models yet)
-# After WP02+, import model Base and set: target_metadata = Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

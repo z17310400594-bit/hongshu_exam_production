@@ -1,8 +1,9 @@
 @echo off
 REM ============================================
 REM WP01+ unified validation — Windows version.
-REM Runs every check except those that need Bash.
+REM Fails fast: exits on first non-zero return code.
 REM ============================================
+setlocal
 
 echo === Ruff ===
 python -m ruff check api/ db/
@@ -16,8 +17,9 @@ echo === Pytest ===
 python -m pytest api/tests/ db/tests/ -v
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-echo === Alembic current ===
-python -m alembic current
+echo === Alembic check ===
+python -m alembic check
+if %errorlevel% neq 0 exit /b %errorlevel%
 
 echo.
 echo ALL CHECKS PASSED
