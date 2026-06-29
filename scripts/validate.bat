@@ -1,23 +1,19 @@
 @echo off
-REM ============================================
-REM WP01+ unified validation — Windows version.
-REM Fails fast: exits on first non-zero return code.
-REM ============================================
-setlocal
+setlocal enabledelayedexpansion
 
-echo === Ruff ===
+echo [1/4] Ruff
 python -m ruff check api/ db/
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-echo === Pyright ===
+echo [2/4] Pyright
 python -m pyright api/ db/ --pythonversion 3.12
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-echo === Pytest ===
-python -m pytest api/tests/ db/tests/ -v
+echo [3/4] Pytest
+python -m pytest api/tests/ db/tests/ -q
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-echo === Alembic check ===
+echo [4/4] Alembic check
 python -m alembic check
 if %errorlevel% neq 0 exit /b %errorlevel%
 

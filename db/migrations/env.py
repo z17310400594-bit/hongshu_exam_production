@@ -55,3 +55,8 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+import api.models.iam  # noqa: E402,F401
+import api.models.knowledge  # noqa: E402,F401
+from api.models import Base  # noqa: E402
+
+target_metadata = Base.metadata  # noqa: F811

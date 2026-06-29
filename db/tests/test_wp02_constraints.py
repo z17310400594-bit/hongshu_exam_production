@@ -108,4 +108,3 @@ def test_acl_collection_fk_must_exist(engine: Engine):
         with engine.connect() as conn:
             conn.execute(text("INSERT INTO knowledge.collection_acl (collection_id, principal_type, principal_code, permission) VALUES (99999, 'org', 'test', 'read')"))  # noqa: E501
             conn.commit()
-
