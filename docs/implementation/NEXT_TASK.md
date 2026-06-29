@@ -2,18 +2,18 @@
 
 > 唯一入口任务。新会话恢复时读本文件，执行其中第一个 in_progress 任务。
 
-## 当前任务（WP00 收尾）
+## 当前状态
 
-**WP00 等待用户确认后提交。** Agent 已完成 WP00 全部产物，按 07 计划 §8，提交前须向用户报告 6 条并获得确认。报告内容见本会话最后一条消息。
+**无 in_progress 工作包。**
 
-WP00 提交命令（用户确认后执行）：
+- **WP00** 已完成并提交（`82a2ef4` → `c6d64ed`），但验证标记正在修正中（build:h5 需补跑、typecheck 描述需更正）。
+- **WP01** 被 DEC001（后端代码位置）和 DEC002（Python 栈选择）阻塞，待用户确认后开始。
 
-```bash
-git add docs/implementation/ baseline/ backups/README.md
-git commit -m "chore: establish v2 migration baseline (WP00)"
-```
+## 下一动作
 
-> **不要 `git add -A`** —— 90 条用户已有未提交改动（.agents/.claude skills 等）必须排除在本次提交外。
+1. 完成 WP00 遗留修正（密码文本清理、基线更正、build:h5 基线）并重新判定 PASS。
+2. 用户确认 DEC001 / DEC002。
+3. 开始 WP01。
 
 ## 下一包（WP01，需先解锁 DEC001/DEC002）
 

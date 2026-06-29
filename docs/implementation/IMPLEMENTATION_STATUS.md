@@ -8,7 +8,7 @@
 
 | 包 | 状态 | Commit | 验证 | 阻塞 | 备注 |
 |---|---|---|---|---|---|
-| WP00 | completed | 82a2ef4 | PASS | - | 基线/备份/状态文件 |
+| WP00 | completed | 82a2ef4 | PASS | DEC001/DEC002 | 基线/备份/状态文件（已修正：密码文本脱敏、恢复验证通过、build:h5编译成功、typecheck更正） |
 | WP01 | pending | - | - | WP00 | 后端+DB工程骨架 |
 | WP02 | pending | - | - | WP01 | iam/organization/collection/ACL |
 | WP03 | pending | - | - | WP02 | certificate/alias/subject |
@@ -47,6 +47,7 @@
 
 ### 前端构建基线（迁移前既有，非本次引入）
 
-- `npm run typecheck`：**1046 个 TS 错误，全部位于 `node_modules/`**（webpack-chain / webpack-dev-server / webpack 的 `.d.ts` 类型冲突）。**`src/` 自身 0 错误。**
+- `npm run typecheck`：**1046 个 TS 错误**。其中 1045 个在 `node_modules/`（webpack-chain / webpack-dev-server / webpack 的 `.d.ts` 类型冲突），**1 个在 `config/index.ts:7`**（TS6198：All destructured elements are unused）。
 - `npm run lint`：7 errors + 3 warnings，均为 `src/` 既有问题（`confirm` 全局、`<select>` 应用 Picker、hooks deps）。**非本次迁移引入。**
+- `npm run build:h5`：编译成功，2 个 webpack cache PackFileCacheStrategy warning（非 error）。
 - 后续 WP 若上述指标恶化才视为回归；既有值本身不阻塞迁移。

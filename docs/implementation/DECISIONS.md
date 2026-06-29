@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | K001 | `src/services/dify.ts`（前端硬编码） | Dify API Key | 已识别存在 | WP14 删除前端直连，Key 后端化 |
 | K002 | `.env.development` 变量 `TARO_APP_DIFY_API_KEY` | Dify API Key | 已识别存在 | WP13/WP14 改读后端代理，轮换该 Key |
-| K003 | `docs/dify/v3/policy_api.py:41` 默认 `policy123` | 数据库密码 | 已识别存在 | WP01 起 V2 读环境变量；旧 API 轮换需另行安排 |
+| K003 | `docs/dify/v3/policy_api.py:41` 存在硬编码默认数据库密码 | 数据库密码 | 已识别存在，**需立即轮换** | WP01 起 V2 读环境变量；旧 API 轮换需另行安排 |
 | K004 | `docs/dify/v3/policy_api.py:46` `CORS allow_origins=["*"]` | 跨域全开 | 已识别存在 | WP12 API V2 收紧为白名单 |
 
 > 注：V2 全新工程（WP01 起）一律通过环境变量注入凭证，`infra/compose.yaml` 与 `.env.example` 只保留变量名，不放真实值。
