@@ -14,7 +14,7 @@ def lookup_by_code(engine: Engine, code: str) -> dict | None:
             text("SELECT id, code, name, category_code FROM core.certificate WHERE code = :c"),
             {"c": code},
         ).fetchone()
-    return row._mapping if row else None
+    return dict(row._mapping) if row else None
 
 
 def lookup_by_normalized_alias(engine: Engine, normalized: str) -> dict | None:
@@ -32,7 +32,7 @@ def lookup_by_normalized_alias(engine: Engine, normalized: str) -> dict | None:
         return None
     if len(rows) > 1:
         raise AmbiguousAliasError(f"normalized_alias '{normalized}' matches {len(rows)} certificates")
-    return rows[0]._mapping
+    return dict(rows[0]._mapping)
 
 
 def list_certificates(engine: Engine) -> list[dict]:
@@ -40,4 +40,4 @@ def list_certificates(engine: Engine) -> list[dict]:
         rows = conn.execute(
             text("SELECT id, code, name, category_code, status FROM core.certificate ORDER BY code")
         ).fetchall()
-    return [r._mapping for r in rows]
+    return [dict(r._mapping) for r in rows]
