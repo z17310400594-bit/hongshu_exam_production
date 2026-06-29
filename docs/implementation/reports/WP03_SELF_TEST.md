@@ -1,8 +1,8 @@
 # WP03 SELF-TEST REPORT
 
 - Base SHA: 7ac333d
-- Implementation SHA: a4e560d
-- Scope: 12 files (core schema + certificate/alias/exam_subject tables, models, service, constraint tests, fixtures)
+- Implementation SHA: a4e560d + registry fix
+- Scope: 14 files (core schema + certificate/alias/exam_subject tables, package-level model registry, service, constraint tests, fixtures)
 
 ## Migration
 - PASS — upgrade → downgrade → upgrade on isolated test DB; head at 3d926df7447d
@@ -15,12 +15,13 @@
 
 ## Cold imports
 - PASS — `python -c "import api.database; import api.deps; import api.main; print('imports_ok')"` → imports_ok
+- PASS — `python -c "from api.models import Base; print(sorted(Base.metadata.tables))"` includes all 6 current V2 tables
 
 ## Special tests
 - PASS — WP03 constraint tests: 10/10 (cert code UNIQUE, name UNIQUE, status CHECK, alias normalized UNIQUE, alias_type CHECK, alias FK, CASCADE, subject code UNIQUE, subject cert+name UNIQUE, subject FK)
 
 ## Pytest
-- PASS — 51 passed, 0 failed, 0 warnings
+- PASS — 52 passed, 0 failed, 0 warnings
 
 ## Ruff
 - PASS — 0 errors
@@ -49,7 +50,7 @@
 - Port 8401 released after uvicorn smoke
 
 ## Status consistency
-- PASS — IMPLEMENTATION_STATUS.md: WP03 completed 34b54d6
+- PASS — IMPLEMENTATION_STATUS.md: WP03 completed a4e560d + registry fix
 - NEXT_TASK.md routed to WP04
 
 ## Validation command
