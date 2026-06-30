@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useExamArticleStore } from '@/store/examArticleStore'
 import type { CardData } from '@/types/exam-article'
 import { STYLE_TOKENS } from '@/constants/style-tokens'
@@ -33,10 +33,13 @@ export default function ExamArticle() {
   const [exporting, setExporting] = useState(false)
   const [examMode, setExamMode] = useState<'preset' | 'custom'>('preset')
   const [selectedPreset, setSelectedPreset] = useState(certOptions[0]?.id ?? '')
+  const defaultThemeAppliedRef = useRef(false)
+  const initialCertificateAppliedRef = useRef(false)
 
   // 初始化：默认选中第一个主题方向
   useEffect(() => {
-    if (THEME_PRESETS.length > 0 && !store.theme) {
+    if (!defaultThemeAppliedRef.current && THEME_PRESETS.length > 0 && !store.theme) {
+      defaultThemeAppliedRef.current = true
       store.setTheme(THEME_PRESETS[0])
     }
   }, [store])
@@ -44,14 +47,21 @@ export default function ExamArticle() {
   // DB 证书加载完成后自动选中第一条
   useEffect(() => {
     let cancelled = false
-    if (!certsLoading && certOptions.length > 0 && !selectedPreset && examMode === 'preset') {
+    if (
+      !initialCertificateAppliedRef.current
+      && !certsLoading
+      && certOptions.length > 0
+      && !selectedPreset
+      && examMode === 'preset'
+    ) {
       const firstCat = certOptions[0]
+      initialCertificateAppliedRef.current = true
       setSelectedPreset(firstCat.id)
       store.setCertificateCode(firstCat.id)
       store.setExamName(firstCat.name)
       store.setExamDate(firstCat.examDate)
       resolveExamDate(firstCat.id).then(date => {
-        if (!cancelled && date) store.setExamDate(date)
+        if (!cancelled && date && initialCertificateAppliedRef.current) store.setExamDate(date)
       })
     }
     return () => { cancelled = true }
