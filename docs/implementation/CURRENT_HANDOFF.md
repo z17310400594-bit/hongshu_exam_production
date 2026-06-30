@@ -1,22 +1,20 @@
-# 当前进度 handoff：V2 MVP 从 WP06 继续
+# 当前进度 handoff：V2 MVP 已完成，等待统一复核
 
-> 目的：让另一台设备或新的执行 Agent 不依赖当前聊天上下文，也能从现有进度继续。不要把本文当完整规格；本文只指向当前状态、执行口径和下一步入口。
+> 目的：让另一台设备或新的执行 Agent 不依赖当前聊天上下文，也能理解最新进度。本文已在 2026-06-30 根据 Mac 设备提交 `825648f` 后更新；更完整流程见 `docs/implementation/V2_MVP_FULL_FLOW.md`。
 
 ## 当前仓库状态
 
 - 工作目录：`D:\taro_project\workbench\taro_workbench`
 - 分支：`feat/v2-knowledge-platform`
 - 远端：`origin git@github.com:z17310400594-bit/hongshu_exam_production.git`
-- 当前代码基线：`4adc1a7 docs: clarify mvp applies after wp06`
-- 本 handoff/设计包提交会在该基线之后；新设备应拉取包含 `docs/implementation/CURRENT_HANDOFF.md` 的最新提交。
-- 当前本地分支领先远端 `origin/feat/v2-knowledge-platform` 7 个提交。
-- 另一台设备继续前，需要先把本地提交同步过去：
-  - 推荐：在当前设备执行 `git push origin feat/v2-knowledge-platform`
-  - 如果不能 push：导出 git bundle 或压缩整个工作区。
+- 当前 MVP 实现提交：`825648f feat: complete v2 knowledge platform mvp`
+- 当前工作区已从远端 fast-forward 到 `825648f`。
 
 ## 最近关键提交
 
 ```text
+825648f feat: complete v2 knowledge platform mvp
+b690439 docs: add current handoff and design package
 4adc1a7 docs: clarify mvp applies after wp06
 6349624 docs: add wp06 mvp execution plan
 878a035 chore: finalize wp05 self-test report
@@ -34,10 +32,12 @@ b91488c chore: sync skills, dify v4 pipeline, wp04 assets, data docs
   - 实现提交：`63dd920 feat: add reusable knowledge graph`
   - 报告提交：`878a035 chore: finalize wp05 self-test report`
   - 结果：`77 passed`，ruff 0，pyright 0，Alembic clean，metadata `diff_count=0`，真实 API smoke 通过。
+- WP06-WP16：已由 Mac 设备统一完成并提交到 `825648f`。
+  - 结果见 `IMPLEMENTATION_STATUS.md` 和 `V2_MVP_FULL_FLOW.md`。
 
-## 当前执行口径
+## 已采用的执行口径
 
-从 WP06 开始，后续所有包默认按 MVP 执行，不是只有 WP06 是 MVP。
+从 WP06 开始，后续所有包已按 MVP 执行，不是只有 WP06 是 MVP。后续若继续新增 WP 或修复 `825648f`，仍应沿用这个口径，除非用户明确批准进入生产化补证阶段。
 
 必须先读：
 
@@ -77,30 +77,16 @@ docs/implementation/design-package/20260629/
 
 注意：`07-按步骤实施计划.md` 仍是原完整目标计划。WP06+ 实际执行以 `MVP_PLAN_WP06_PLUS.md` 为准。
 
-## 下一步：WP06
+## 下一步：统一复核
 
 当前 `NEXT_TASK.md` 指向：
 
 ```text
-WP06：政策版本、条款和报考规则
-停止点：feat: add policy rules MVP
+WP00-WP16 MVP 已完成。
+下一步等待用户确认：审计 825648f、补真实数据，或进入生产化补证。
 ```
 
-建议 WP06 MVP 做到：
-
-1. 创建 `work-packages/WP06.md`，先补需求追踪矩阵；
-2. 建最小 policy 模型：
-   - policy_document
-   - policy_version
-   - policy_clause
-   - eligibility_rule
-   - eligibility_rule_evidence
-3. 规则关联 WP05 knowledge point；
-4. 证据关联 WP04 fragment；
-5. `published` 规则必须 `approved` 且至少一条 `primary` evidence；
-6. 查询只返回有效、未废止、已审核规则；
-7. 无法判断时返回 `insufficient_data`，不要猜；
-8. API 只做最小 `eligibility/evaluate` 或 service 查询 smoke。
+建议优先做 `825648f` 的统一 review，不要直接当生产版本切流。
 
 ## 验证基线
 
@@ -110,14 +96,11 @@ WP06：政策版本、条款和报考规则
 cmd.exe /c scripts\validate.bat
 ```
 
-WP05 最后结果：
+最新 MVP 结果：
 
 ```text
-77 passed
-ruff 0
-pyright 0
-alembic check clean
-ALL CHECKS PASSED
+WP06-WP16 已在 825648f 中完成。
+最终记录：WP16 142 tests, ruff 0, pyright 0, alembic clean, release sample PASS, secret scan PASS。
 ```
 
 有 migration 的后续包必须额外记录：
@@ -148,19 +131,19 @@ fresh process Base.metadata.tables 包含本包表
 
 ## 建议使用的 skills
 
-- `implement`：执行 WP06 代码和文档变更。
-- `database-migrations`：设计和验证 Alembic migration。
-- `postgres-patterns`：检查 schema、索引、约束。
-- `fastapi-patterns`：新增 service/API 时保持现有 FastAPI 风格。
-- `review`：完成后做本地两轴复核。
+- `review`：优先用于审计 `825648f` 的代码、schema、权限和验收证据。
+- `implement`：仅在 review 后修复明确问题或新增后续 WP 时使用。
+- `database-migrations`：涉及 Alembic migration 修复或生产化迁移补证时使用。
+- `postgres-patterns`：检查 schema、索引、约束和查询性能风险。
+- `fastapi-patterns`：新增 service/API 或调整现有路由时保持现有 FastAPI 风格。
 - `handoff`：如果再次换设备或换模型，生成新的交接摘要。
 
 ## 新设备启动 checklist
 
-1. 获取最新代码：`git fetch` 后切到 `feat/v2-knowledge-platform`，确保包含 `docs/implementation/CURRENT_HANDOFF.md` 所在提交。
+1. 获取最新代码：`git fetch` 后切到 `feat/v2-knowledge-platform`，确保包含 `825648f` 或更晚提交。
 2. 阅读 `docs/implementation/CURRENT_HANDOFF.md`。
-3. 阅读 `docs/implementation/MVP_PLAN_WP06_PLUS.md`。
+3. 阅读 `docs/implementation/V2_MVP_FULL_FLOW.md`。
 4. 阅读 `docs/implementation/NEXT_TASK.md`。
-5. 阅读 `docs/implementation/design-package/20260629/` 中 WP06 相关来源。
+5. 按需阅读 `docs/implementation/MVP_PLAN_WP06_PLUS.md` 和 `docs/implementation/design-package/20260629/`。
 6. 执行 `git status --short`，确认工作区干净。
-7. 开始 WP06，不要开启 WP07。
+7. 不要直接生产切流；先 review `825648f`。
