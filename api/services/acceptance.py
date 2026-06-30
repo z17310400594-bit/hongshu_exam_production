@@ -252,6 +252,8 @@ def _structured_expectations(expected: dict[str, Any]) -> dict[str, Any]:
         "matchedRuleCode",
         "eventCode",
         "questionCode",
+        "statusCode",
+        "itemCount",
     )
     return {field: expected[field] for field in fields if field in expected}
 
