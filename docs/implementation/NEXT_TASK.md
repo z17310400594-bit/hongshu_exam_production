@@ -25,6 +25,7 @@
 - **P1** ✅ 已完成（`32244f4`）：审计 MVP，实现 Dify key 当前文件清理、证书 alias 去重、P1 报告。
 - **P2 Batch 001** ✅ 已完成：旧库 `cert_basic` 证书目录底座 + 执业药师深链路 + 一级建造师 2026 考试日期骨架，见 `reports/P2_BATCH_001_SELF_TEST.md`。
 - **P3 Batch 001** ✅ 已完成：基于 P2 已迁数据建立 10 条真实黄金用例，runner 可实际调用 V2 service，见 `reports/P3_GOLDEN_SET_REPORT.md`。
+- **P4** ✅ 已完成：Taro 新增 `V2闭环` 入口，展示证书/考试/资格/知识/题库/权限/生成引用闭环，H5 build OK，P4 scoped lint OK，backend 149 tests，P3 golden set PASS，见 `reports/P4_FRONTEND_FLOW_SELF_TEST.md`。
 
 ## 下一步（V2 MVP 工作包已全部完成）
 
@@ -36,7 +37,7 @@ WP00-WP16 已按 MVP 口径完成，WP06-WP16 已统一进入提交 `825648f fea
 
 1. `P2-fix`：先处理 P2 needs_review 中的高优先级项，例如本地演示库清理、执业药师报考年限官方核验；
 2. `P2-expand`：继续补省级报名时间/考区，或把一级建造师从骨架扩为完整闭环；
-3. `P4`：基于当前执业药师 + 一建骨架数据做前端业务闭环增强；
+3. `P5`：在 P4 前端闭环可展示的基础上，继续做 Dify/模型网关联调；
 4. `修改计划`：先调整 `V2_MVP_TO_PRODUCTION_PLAN.md` 的阶段或范围。
 
-停止点：等待用户确认从 P2-fix、P2-expand、P4 或修改计划开始；确认前不做功能代码改动。
+停止点：等待用户确认从 P2-fix、P2-expand、P5 或修改计划开始；确认前不做功能代码改动。

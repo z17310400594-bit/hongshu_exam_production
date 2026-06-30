@@ -2,11 +2,13 @@ import { View, Text } from '@tarojs/components'
 import { useLoad } from '@tarojs/taro'
 import { Suspense, lazy } from 'react'
 import { useWorkbenchStore } from '@/store/workbenchStore'
+import { isV2BusinessFlowEnabled } from '@/services/v2BusinessFlowApi'
 import LeftNav from './components/LeftNav'
 import './index.scss'
 
 const TopicFinder = lazy(() => import('./components/TopicFinder'))
 const ExamArticle = lazy(() => import('./components/ExamArticle'))
+const V2BusinessFlow = lazy(() => import('./components/V2BusinessFlow'))
 
 function LoadingFallback() {
   return (
@@ -30,6 +32,7 @@ function PlaceholderPage({ icon, title, desc }: { icon: string; title: string; d
 
 export default function Workbench() {
   const activeTool = useWorkbenchStore(s => s.activeTool)
+  const showV2BusinessFlow = isV2BusinessFlowEnabled()
 
   useLoad(() => {
     // 线上环境可在此做登录态校验等
@@ -52,6 +55,14 @@ export default function Workbench() {
             <TopicFinder />
           </Suspense>
         </View>
+
+        {showV2BusinessFlow ? (
+          <View className={`page-view ${activeTool === 'v2-flow' ? 'active' : ''}`}>
+            <Suspense fallback={<LoadingFallback />}>
+              <V2BusinessFlow />
+            </Suspense>
+          </View>
+        ) : null}
 
         <View className={`page-view ${activeTool === 'more-tools' ? 'active' : ''}`}>
           <PlaceholderPage

@@ -1,5 +1,6 @@
 import { View, Text } from '@tarojs/components'
 import { useWorkbenchStore, type ToolKey } from '@/store/workbenchStore'
+import { isV2BusinessFlowEnabled } from '@/services/v2BusinessFlowApi'
 
 interface NavItem {
   key: ToolKey
@@ -10,6 +11,7 @@ interface NavItem {
 const MAIN_ITEMS: NavItem[] = [
   { key: 'content-producer', label: '内容生产', icon: '📝' },
   { key: 'topic-finder', label: '选题分析', icon: '📊' },
+  ...(isV2BusinessFlowEnabled() ? [{ key: 'v2-flow' as ToolKey, label: 'V2闭环', icon: '🧭' }] : []),
   { key: 'more-tools', label: '更多功能', icon: '⚙️' },
 ]
 
