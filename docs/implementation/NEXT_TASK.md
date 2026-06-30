@@ -21,6 +21,9 @@
 - **WP14** ✅ 已完成（`825648f`）：生成流程最小后端化，133 tests, ruff 0, pyright 0, alembic clean, real API smoke OK, H5 build OK, frontend type/lint no new scoped issues
 - **WP15** ✅ 已完成（`825648f`）：双读/黄金集/安全验收框架 MVP，138 tests, ruff 0, pyright 0, alembic clean, acceptance sample PASS, secret scan PASS
 - **WP16** ✅ 已完成（`825648f`）：灰度/恢复/回滚/旧库只读校验框架 MVP，142 tests, ruff 0, pyright 0, alembic clean, release sample PASS, secret scan PASS
+- **P0** ✅ 已完成：两台设备同步计划和交接文档，远端已推送。
+- **P1** ✅ 已完成（`32244f4`）：审计 MVP，实现 Dify key 当前文件清理、证书 alias 去重、P1 报告。
+- **P2 Batch 001** ✅ 已完成：旧库 `cert_basic` 证书目录底座 + 执业药师深链路 + 一级建造师 2026 考试日期骨架，见 `reports/P2_BATCH_001_SELF_TEST.md`。
 
 ## 下一步（V2 MVP 工作包已全部完成）
 
@@ -30,9 +33,9 @@ WP00-WP16 已按 MVP 口径完成，WP06-WP16 已统一进入提交 `825648f fea
 
 建议下一步由用户明确选择：
 
-1. `P0`：同步当前文档和计划书，让 Windows/Mac/后续 Agent 看到同一套事实；
-2. `P1`：统一审计 `825648f`，先修明显 schema/API/权限/前端接入问题；
-3. `P2`：真实数据小批迁移，优先执业药师 + 一级建造师；
+1. `P2-fix`：先处理 P2 needs_review 中的高优先级项，例如本地演示库清理、执业药师报考年限官方核验；
+2. `P2-expand`：继续补省级报名时间/考区，或把一级建造师从骨架扩为完整闭环；
+3. `P3`：开始黄金集与差异确认；
 4. `修改计划`：先调整 `V2_MVP_TO_PRODUCTION_PLAN.md` 的阶段或范围。
 
-停止点：等待用户确认从 P0、P1、P2 或修改计划开始；确认前不做功能代码改动。
+停止点：等待用户确认从 P2-fix、P2-expand、P3 或修改计划开始；确认前不做功能代码改动。
