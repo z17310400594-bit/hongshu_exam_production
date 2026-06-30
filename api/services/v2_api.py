@@ -71,7 +71,9 @@ def list_certificates(
                 {"cert_ids": tuple(cert_ids)},
             ).fetchall()
             for row in alias_rows:
-                aliases_by_cert[row.certificate_id].append(row.alias)
+                aliases = aliases_by_cert[row.certificate_id]
+                if row.alias not in aliases:
+                    aliases.append(row.alias)
 
     items = []
     for row in visible_rows:
@@ -111,7 +113,7 @@ def get_certificate_detail(
         ).fetchone()
         if cert is None:
             raise ValueError("certificate not found")
-        aliases = conn.execute(
+        alias_rows = conn.execute(
             text("""
                 SELECT alias
                   FROM core.certificate_alias
@@ -120,6 +122,10 @@ def get_certificate_detail(
             """),
             {"certificate_id": cert.id},
         ).scalars().all()
+        aliases: list[str] = []
+        for alias in alias_rows:
+            if alias not in aliases:
+                aliases.append(alias)
 
     return {
         "code": cert.code,
@@ -129,7 +135,7 @@ def get_certificate_detail(
         "examAuthority": cert.exam_authority,
         "nationwide": cert.nationwide,
         "status": cert.status,
-        "aliases": list(aliases),
+        "aliases": aliases,
         "nextExam": _next_exam_summary(engine, certificate_code=certificate_code, as_of=as_of),
     }
 

@@ -186,6 +186,24 @@ def test_v2_certificate_query_returns_aliases_and_next_exam(engine: Engine):
     assert result["nextCursor"] is None
 
 
+def test_v2_certificate_query_deduplicates_display_aliases(engine: Engine):
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO core.certificate_alias (certificate_id, alias, normalized_alias, alias_type)
+                SELECT id, '一建', 'wp12_duplicate_display_alias', 'legacy'
+                  FROM core.certificate
+                 WHERE code = 'c_constructor_1'
+                ON CONFLICT DO NOTHING
+            """),
+        )
+
+    result = list_certificates(engine, query="一建", limit=10, as_of=date(2026, 6, 29))
+
+    item = next(item for item in result["items"] if item["code"] == "c_constructor_1")
+    assert item["aliases"].count("一建") == 1
+
+
 def test_v2_eligibility_response_contains_requirements_and_citations(engine: Engine):
     result = evaluate_eligibility_v2(
         engine,
