@@ -26,6 +26,7 @@
 - **P2 Batch 001** ✅ 已完成：旧库 `cert_basic` 证书目录底座 + 执业药师深链路 + 一级建造师 2026 考试日期骨架，见 `reports/P2_BATCH_001_SELF_TEST.md`。
 - **P3 Batch 001** ✅ 已完成：基于 P2 已迁数据建立 10 条真实黄金用例，runner 可实际调用 V2 service，见 `reports/P3_GOLDEN_SET_REPORT.md`。
 - **P4** ✅ 已完成：Taro 新增 `V2闭环` 入口，展示证书/考试/资格/知识/题库/权限/生成引用闭环，H5 build OK，P4 scoped lint OK，backend 149 tests，P3 golden set PASS，见 `reports/P4_FRONTEND_FLOW_SELF_TEST.md`。
+- **P5** ✅ 代码路径已完成：后端模型网关/Dify 配置入口、失败落库、引用非空门禁、前端不持密钥；定向生成测试 6 passed，见 `reports/P5_MODEL_GATEWAY_SELF_TEST.md`。真实 Dify smoke 需在后端密钥环境执行。
 
 ## 下一步（V2 MVP 工作包已全部完成）
 
@@ -37,7 +38,8 @@ WP00-WP16 已按 MVP 口径完成，WP06-WP16 已统一进入提交 `825648f fea
 
 1. `P2-fix`：先处理 P2 needs_review 中的高优先级项，例如本地演示库清理、执业药师报考年限官方核验；
 2. `P2-expand`：继续补省级报名时间/考区，或把一级建造师从骨架扩为完整闭环；
-3. `P5`：在 P4 前端闭环可展示的基础上，继续做 Dify/模型网关联调；
-4. `修改计划`：先调整 `V2_MVP_TO_PRODUCTION_PLAN.md` 的阶段或范围。
+3. `P5-real-smoke`：在有后端 Dify 密钥的环境，按 `reports/P5_MODEL_GATEWAY_SELF_TEST.md` 跑真实 Dify smoke；
+4. `P6`：进入运维生产化补证（备份、恢复、性能、监控、回滚、旧库只读）；
+5. `修改计划`：先调整 `V2_MVP_TO_PRODUCTION_PLAN.md` 的阶段或范围。
 
-停止点：等待用户确认从 P2-fix、P2-expand、P5 或修改计划开始；确认前不做功能代码改动。
+停止点：等待用户确认从 P2-fix、P2-expand、P5-real-smoke、P6 或修改计划开始；确认前不做功能代码改动。

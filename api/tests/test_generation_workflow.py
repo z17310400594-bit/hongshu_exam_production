@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 from api.config import settings
+from api.services import model_gateway
 from api.services.generation_workflow import create_generation, get_generation_v2
 from api.services.knowledge_points import create_knowledge_point, map_fragment_to_knowledge_point
 from db.tests.fixtures_wp02 import seed_fixtures as seed_wp02
@@ -158,6 +159,167 @@ def test_restricted_generation_routes_internal_and_preserves_confidentiality(eng
     assert result["confidentiality"] == "restricted"
     assert result["modelRoute"] == "internal"
     assert result["citations"][0]["confidentiality"] == "restricted"
+
+
+def test_configured_model_gateway_success_persists_provider_and_citations(
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "generation_provider", "dify")
+    monkeypatch.setattr(settings, "dify_api_url", "https://dify.example.test")
+    monkeypatch.setattr(settings, "dify_api_key", "test-placeholder-key")
+
+    def fake_gateway(**kwargs):
+        assert kwargs["model_route"] == "approved_external"
+        return model_gateway.ModelGatewayResult(
+            provider="dify",
+            model_name="dify-workflow",
+            cards=[
+                {
+                    "type": "cover",
+                    "title": "Dify generated card",
+                    "subtitle": "",
+                    "days": [],
+                    "items": [{"label": "模型输出", "content": "已结合引用生成"}],
+                    "qrcode_url": "",
+                }
+            ],
+            raw_metadata={"workflowRunId": "wf-test"},
+        )
+
+    monkeypatch.setattr(model_gateway, "generate_cards", fake_gateway)
+
+    result = create_generation(
+        engine,
+        principal_type="org",
+        principal_code="org_teaching_materials",
+        application_code="exam_article",
+        output_type="card_set",
+        certificate_code="c_constructor_1",
+        collection_codes=["coll_internal"],
+        knowledge_point_codes=["WP14_GEN_KP"],
+        inputs={"examName": "一建", "theme": "模型网关"},
+        card_sequence=["cover"],
+    )
+
+    assert result["status"] == "succeeded"
+    assert result["modelRoute"] == "approved_external"
+    assert result["cards"][0]["title"] == "Dify generated card"
+    assert result["cards"][0]["citations"][0]["assetCode"] == "WP14_INTERNAL_SOURCE"
+
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                SELECT r.model_provider, r.model_name, o.content
+                  FROM generation.run r
+                  JOIN generation.output o ON o.generation_run_id = r.id
+                 WHERE r.id = :run_id
+            """),
+            {"run_id": result["runId"]},
+        ).fetchone()
+
+    assert row is not None
+    assert row.model_provider == "dify"
+    assert row.model_name == "dify-workflow"
+    assert row.content["gateway"]["provider"] == "dify"
+    assert row.content["gateway"]["metadata"]["workflowRunId"] == "wf-test"
+
+
+def test_model_gateway_failure_is_persisted_without_output(
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "generation_provider", "dify")
+    monkeypatch.setattr(settings, "dify_api_url", "https://dify.example.test")
+    monkeypatch.setattr(settings, "dify_api_key", "test-placeholder-key")
+
+    def failing_gateway(**kwargs):
+        assert kwargs["model_route"] == "approved_external"
+        raise model_gateway.ModelGatewayError(
+            code="MODEL_GATEWAY_TIMEOUT",
+            message="Model gateway request timed out",
+            provider="dify",
+        )
+
+    monkeypatch.setattr(model_gateway, "generate_cards", failing_gateway)
+
+    result = create_generation(
+        engine,
+        principal_type="org",
+        principal_code="org_teaching_materials",
+        application_code="exam_article",
+        output_type="card_set",
+        certificate_code="c_constructor_1",
+        collection_codes=["coll_internal"],
+        knowledge_point_codes=["WP14_GEN_KP"],
+        inputs={"examName": "一建", "theme": "失败落库"},
+        card_sequence=["cover"],
+    )
+
+    assert result["status"] == "failed"
+    assert result["error"] == {
+        "code": "MODEL_GATEWAY_TIMEOUT",
+        "message": "Model gateway request timed out",
+        "provider": "dify",
+    }
+    assert result["citations"][0]["assetCode"] == "WP14_INTERNAL_SOURCE"
+
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                SELECT
+                    r.status,
+                    count(DISTINCT c.fragment_id) AS citation_count,
+                    count(DISTINCT o.id) AS output_count
+                  FROM generation.run r
+                  LEFT JOIN generation.citation c ON c.generation_run_id = r.id
+                  LEFT JOIN generation.output o ON o.generation_run_id = r.id
+                 WHERE r.id = :run_id
+                 GROUP BY r.id, r.status
+            """),
+            {"run_id": result["runId"]},
+        ).fetchone()
+
+    assert row is not None
+    assert row.status == "failed"
+    assert row.citation_count >= 1
+    assert row.output_count == 0
+
+
+def test_generation_without_readable_citations_fails_without_output(engine: Engine):
+    result = create_generation(
+        engine,
+        principal_type="org",
+        principal_code="org_teaching_materials",
+        application_code="exam_article",
+        output_type="card_set",
+        certificate_code="c_constructor_1",
+        collection_codes=["coll_internal"],
+        knowledge_point_codes=["WP14_UNKNOWN_KP"],
+        inputs={"examName": "一建", "theme": "无引用"},
+        card_sequence=["cover"],
+    )
+
+    assert result["status"] == "failed"
+    assert result["cards"] == []
+    assert result["citations"] == []
+    assert result["error"]["code"] == "GENERATION_REQUIRES_CITATION"
+
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                SELECT r.status, count(o.id) AS output_count
+                  FROM generation.run r
+                  LEFT JOIN generation.output o ON o.generation_run_id = r.id
+                 WHERE r.id = :run_id
+                 GROUP BY r.id, r.status
+            """),
+            {"run_id": result["runId"]},
+        ).fetchone()
+
+    assert row is not None
+    assert row.status == "failed"
+    assert row.output_count == 0
 
 
 def test_route_requires_identity_allows_denies_and_handles_unknown(

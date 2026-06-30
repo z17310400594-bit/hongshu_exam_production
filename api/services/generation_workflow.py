@@ -2,8 +2,8 @@
 
 This is deliberately small: it creates an auditable generation run, gathers
 approved ACL-readable citations, stores a draft output, and returns a card set.
-The actual long-running Dify/SSE orchestration remains deferred; the browser no
-longer talks to Dify or holds a model key.
+P5 adds a backend-only model gateway boundary. The browser still only receives
+task/result/citation data; provider credentials stay on the server.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from sqlalchemy.engine import Engine
 
 from api.auth import check_collection_access
 from api.config import settings
+from api.services import model_gateway
 
 CONFIDENTIALITY_RANK = {
     "public": 0,
@@ -40,7 +41,6 @@ def create_generation(
     card_sequence: list[str] | None = None,
 ) -> dict[str, Any]:
     """Create one synchronous MVP generation run with citations and output."""
-    _ = certificate_code
     requested_collections = [code for code in collection_codes if code]
     for code in requested_collections:
         check_collection_access(
@@ -60,49 +60,46 @@ def create_generation(
         query=_build_generation_query(inputs),
         limit=5,
     )
+    if not citations:
+        run = _insert_generation_run(
+            engine,
+            application_code=application_code,
+            principal_code=principal_code,
+            model_provider="local",
+            model_name="local-draft-generator",
+            model_route="internal",
+            prompt_version="p5_model_gateway_v1",
+            confidentiality="internal",
+            status="failed",
+        )
+        return _generation_response(
+            run=run,
+            output=None,
+            citations=[],
+            requested_output_type=output_type,
+            error={
+                "code": "GENERATION_REQUIRES_CITATION",
+                "message": "Generation requires at least one readable citation",
+                "provider": "local",
+            },
+        )
+
     confidentiality = _max_confidentiality([item["assetConfidentiality"] for item in citations])
     model_route = _model_route_for_confidentiality(confidentiality)
-    model_provider = "local" if not settings.dify_api_key else "dify"
-    model_name = "local-draft-generator" if not settings.dify_api_key else "dify-workflow"
-
-    cards = _build_local_cards(
-        inputs=inputs,
-        card_sequence=card_sequence or [],
-        citations=citations,
+    initial_provider = _configured_model_provider(model_route)
+    initial_model_name = "dify-workflow" if initial_provider == "dify" else "local-draft-generator"
+    run = _insert_generation_run(
+        engine,
+        application_code=application_code,
+        principal_code=principal_code,
+        model_provider=initial_provider,
+        model_name=initial_model_name,
+        model_route=model_route,
+        prompt_version="p5_model_gateway_v1",
+        confidentiality=confidentiality,
+        status="running",
     )
-    output_content = {
-        "cards": cards,
-        "citations": [_public_citation(item) for item in citations],
-        "idempotencyKey": idempotency_key,
-    }
-
     with engine.begin() as conn:
-        run = conn.execute(
-            text("""
-                INSERT INTO generation.run (
-                    application_code, user_code, model_provider, model_name,
-                    model_route, prompt_version, confidentiality, status
-                )
-                VALUES (
-                    :application_code, :user_code, :model_provider, :model_name,
-                    :model_route, :prompt_version, :confidentiality, 'succeeded'
-                )
-                RETURNING id, application_code, user_code, model_provider, model_name,
-                          model_route, prompt_version, confidentiality, status, created_at
-            """),
-            {
-                "application_code": application_code,
-                "user_code": principal_code,
-                "model_provider": model_provider,
-                "model_name": model_name,
-                "model_route": model_route,
-                "prompt_version": "wp14_mvp_backend_v1",
-                "confidentiality": confidentiality,
-            },
-        ).fetchone()
-        if run is None:
-            raise RuntimeError("generation run insert failed")
-
         for index, item in enumerate(citations, start=1):
             conn.execute(
                 text("""
@@ -112,12 +109,63 @@ def create_generation(
                     VALUES (:run_id, :fragment_id, :citation_order, 'prompt_context')
                 """),
                 {
-                    "run_id": run.id,
+                    "run_id": run["id"],
                     "fragment_id": item["fragmentId"],
                     "citation_order": index,
                 },
             )
 
+    try:
+        gateway_result = model_gateway.generate_cards(
+            application_code=application_code,
+            output_type=output_type,
+            certificate_code=certificate_code,
+            principal_code=principal_code,
+            model_route=model_route,
+            inputs=inputs,
+            card_sequence=card_sequence or [],
+            citations=citations,
+        )
+    except model_gateway.ModelGatewayError as exc:
+        failed_run = _update_generation_run_status(engine, run_id=run["id"], status="failed")
+        return _generation_response(
+            run=failed_run,
+            output=None,
+            citations=citations,
+            requested_output_type=output_type,
+            error=exc.to_public_dict(),
+        )
+
+    output_content = {
+        "cards": _cards_with_citations(gateway_result.cards, citations),
+        "citations": [_public_citation(item) for item in citations],
+        "idempotencyKey": idempotency_key,
+        "gateway": {
+            "provider": gateway_result.provider,
+            "modelName": gateway_result.model_name,
+            "metadata": gateway_result.raw_metadata,
+        },
+    }
+
+    with engine.begin() as conn:
+        run_row = conn.execute(
+            text("""
+                UPDATE generation.run
+                   SET status = 'succeeded',
+                       model_provider = :model_provider,
+                       model_name = :model_name
+                 WHERE id = :run_id
+             RETURNING id, application_code, user_code, model_provider, model_name,
+                       model_route, prompt_version, confidentiality, status, created_at
+            """),
+            {
+                "run_id": run["id"],
+                "model_provider": gateway_result.provider,
+                "model_name": gateway_result.model_name,
+            },
+        ).fetchone()
+        if run_row is None:
+            raise RuntimeError("generation run update failed")
         output = conn.execute(
             text("""
                 INSERT INTO generation.output (
@@ -130,7 +178,7 @@ def create_generation(
                 RETURNING id, output_type, content, confidentiality, status, created_at
             """),
             {
-                "run_id": run.id,
+                "run_id": run["id"],
                 "output_type": output_type,
                 "content_json": json.dumps(output_content, ensure_ascii=False),
                 "confidentiality": confidentiality,
@@ -139,7 +187,7 @@ def create_generation(
         if output is None:
             raise RuntimeError("generation output insert failed")
 
-    return _generation_response(run=dict(run._mapping), output=dict(output._mapping), citations=citations)
+    return _generation_response(run=dict(run_row._mapping), output=dict(output._mapping), citations=citations)
 
 
 def get_generation_v2(
@@ -340,41 +388,84 @@ def _max_confidentiality(values: list[str]) -> str:
 def _model_route_for_confidentiality(confidentiality: str) -> str:
     if confidentiality == "restricted":
         return "internal"
-    return "approved_external" if settings.dify_api_key else "internal"
+    return "approved_external" if _configured_model_provider("approved_external") == "dify" else "internal"
 
 
-def _build_local_cards(
+def _configured_model_provider(model_route: str) -> str:
+    provider = settings.generation_provider.strip().lower() or "local"
+    if provider == "dify" and model_route == "approved_external":
+        return "dify"
+    return "local"
+
+
+def _insert_generation_run(
+    engine: Engine,
     *,
-    inputs: dict[str, Any],
-    card_sequence: list[str],
-    citations: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    exam_name = str(inputs.get("examName") or inputs.get("exam_name") or "考试")
-    exam_date = str(inputs.get("examDate") or inputs.get("exam_date") or "")
-    target = str(inputs.get("targetAudience") or inputs.get("target_audience") or "备考人群")
-    theme = str(inputs.get("theme") or "备考规划")
-    sequence = card_sequence or ["cover", "plan", "notice", "cta"]
-    source_hint = citations[0]["heading"] if citations else "待补充引用"
-
-    cards: list[dict[str, Any]] = []
-    for index, card_type in enumerate(sequence, start=1):
-        cards.append(
+    application_code: str,
+    principal_code: str,
+    model_provider: str,
+    model_name: str,
+    model_route: str,
+    prompt_version: str,
+    confidentiality: str,
+    status: str,
+) -> dict[str, Any]:
+    with engine.begin() as conn:
+        run = conn.execute(
+            text("""
+                INSERT INTO generation.run (
+                    application_code, user_code, model_provider, model_name,
+                    model_route, prompt_version, confidentiality, status
+                )
+                VALUES (
+                    :application_code, :user_code, :model_provider, :model_name,
+                    :model_route, :prompt_version, :confidentiality, :status
+                )
+                RETURNING id, application_code, user_code, model_provider, model_name,
+                          model_route, prompt_version, confidentiality, status, created_at
+            """),
             {
-                "type": card_type,
-                "title": f"{exam_name}{theme}" if index == 1 else f"{theme} · 第 {index} 张",
-                "subtitle": f"面向{target}，考试日期 {exam_date or '待确认'}",
-                "days": [],
-                "items": [
-                    {
-                        "label": "资料依据",
-                        "content": source_hint,
-                    }
-                ],
-                "qrcode_url": "",
-                "citations": [_public_citation(item) for item in citations],
-            }
-        )
-    return cards
+                "application_code": application_code,
+                "user_code": principal_code,
+                "model_provider": model_provider,
+                "model_name": model_name,
+                "model_route": model_route,
+                "prompt_version": prompt_version,
+                "confidentiality": confidentiality,
+                "status": status,
+            },
+        ).fetchone()
+    if run is None:
+        raise RuntimeError("generation run insert failed")
+    return dict(run._mapping)
+
+
+def _update_generation_run_status(engine: Engine, *, run_id: int, status: str) -> dict[str, Any]:
+    with engine.begin() as conn:
+        run = conn.execute(
+            text("""
+                UPDATE generation.run
+                   SET status = :status
+                 WHERE id = :run_id
+             RETURNING id, application_code, user_code, model_provider, model_name,
+                       model_route, prompt_version, confidentiality, status, created_at
+            """),
+            {"run_id": run_id, "status": status},
+        ).fetchone()
+    if run is None:
+        raise RuntimeError("generation run update failed")
+    return dict(run._mapping)
+
+
+def _cards_with_citations(cards: list[dict[str, Any]], citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    public_citations = [_public_citation(item) for item in citations]
+    normalized_cards: list[dict[str, Any]] = []
+    for card in cards:
+        normalized = dict(card)
+        if not normalized.get("citations"):
+            normalized["citations"] = public_citations
+        normalized_cards.append(normalized)
+    return normalized_cards
 
 
 def _public_citation(item: dict[str, Any]) -> dict[str, Any]:
@@ -397,16 +488,21 @@ def _generation_response(
     run: dict[str, Any],
     output: dict[str, Any] | None,
     citations: list[dict[str, Any]],
+    requested_output_type: str | None = None,
+    error: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     content = output["content"] if output is not None else {}
-    return {
+    response = {
         "runId": run["id"],
         "status": run["status"],
         "applicationCode": run["application_code"],
-        "outputType": output["output_type"] if output is not None else None,
+        "outputType": output["output_type"] if output is not None else requested_output_type,
         "confidentiality": run["confidentiality"],
         "modelRoute": run["model_route"],
         "cards": content.get("cards", []),
         "citations": [_public_citation(item) for item in citations],
         "createdAt": run["created_at"].isoformat(),
     }
+    if error is not None:
+        response["error"] = error
+    return response

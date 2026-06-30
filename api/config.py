@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # local deterministic draft generator; browsers must never receive this key.
     dify_api_url: str = ""
     dify_api_key: str = ""
+    generation_provider: str = "local"
+    model_gateway_timeout_seconds: float = 30.0
 
     @property
     def database_url(self) -> str:
