@@ -1,0 +1,7 @@
+{"route":"/api/v2/certificates","statusCode":200,"latencyMs":120}
+{"route":"/api/v2/certificates/pharmacist_licensed","statusCode":200,"latencyMs":160}
+{"route":"/api/v2/eligibility/evaluate","statusCode":200,"latencyMs":220,"requiresCitation":true,"citationCount":1}
+{"route":"/api/v2/knowledge/search","statusCode":200,"latencyMs":180,"retrievalHit":true,"requiresCitation":true,"citationCount":1}
+{"route":"/api/v2/knowledge/search","statusCode":200,"latencyMs":190,"retrievalHit":true,"requiresCitation":true,"citationCount":1}
+{"route":"/api/v2/generations","category":"generation","statusCode":200,"latencyMs":420,"generationStatus":"succeeded","requiresCitation":true,"citationCount":2}
+{"route":"/papers/P2_PHARMACIST_YAO1_SAMPLE/questions","statusCode":200,"latencyMs":260}
