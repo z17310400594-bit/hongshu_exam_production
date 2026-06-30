@@ -131,7 +131,13 @@ export default function ExamArticle() {
 
   const startGenerate = useCallback(async () => {
     setShowConfirm(false)
-    await store.startGenerate()
+    try {
+      await store.startGenerate()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '请稍后重试'
+      setToastMsg(`❌ 生成失败：${message}`)
+      setTimeout(() => setToastMsg(''), 3000)
+    }
   }, [store])
 
   // ========== 审核 ==========
@@ -292,7 +298,6 @@ export default function ExamArticle() {
       case 'plan':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             {displayCard.mentor_note && (
               <View className='mentor-note'>
@@ -302,15 +307,17 @@ export default function ExamArticle() {
             <View className='card-divider' />
             <View className='plan-list'>
               {/* 过滤省略占位行（摘要模式下 CODE_1 插入的 "..." 日期），避免预览出现空行 */}
-              {(displayCard.days ?? []).filter(d => d.date !== '...').slice(0, 8).map((d, di) => (
+              {(displayCard.days ?? [])
+                .filter(d => d.date !== '...' && (d.date?.trim() || d.task?.trim() || d.duration?.trim()))
+                .slice(0, 8).map((d, di) => (
                 <View key={di} className={`day-row ${d.duration === '休息' ? 'rest' : ''}`}>
                   <Text className='day-date'>{d.date}</Text>
                   <Text className='day-task'>{d.task}</Text>
-                  <Text className='day-dur'>{d.duration}</Text>
+                  {d.duration?.trim() && <Text className='day-dur'>{d.duration}</Text>}
                 </View>
               ))}
-              {(displayCard.days ?? []).filter(d => d.date !== '...').length > 8 && (
-                <Text className='day-more'>... 共 {(displayCard.days ?? []).filter(d => d.date !== '...').length} 天</Text>
+              {(displayCard.days ?? []).filter(d => d.date !== '...' && (d.date?.trim() || d.task?.trim() || d.duration?.trim())).length > 8 && (
+                <Text className='day-more'>... 共 {(displayCard.days ?? []).filter(d => d.date !== '...' && (d.date?.trim() || d.task?.trim() || d.duration?.trim())).length} 天</Text>
               )}
             </View>
           </View>
@@ -319,7 +326,6 @@ export default function ExamArticle() {
       case 'subjects':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             <View className='tag-list'>
@@ -338,7 +344,6 @@ export default function ExamArticle() {
       case 'notice':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             <View className='notice-list'>
@@ -355,7 +360,6 @@ export default function ExamArticle() {
       case 'cta':
         bodyHtml = (
           <View className='cta-block'>
-            <Text className='cta-main'>{displayCard.title}</Text>
             <Text className='cta-sub'>{displayCard.subtitle}</Text>
             <View className='qr-placeholder'><Text>二维码</Text></View>
             <Text className='qr-hint'>评论区互动留资</Text>
@@ -365,7 +369,6 @@ export default function ExamArticle() {
       case 'resources':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             <View className='resource-list'>
@@ -383,7 +386,6 @@ export default function ExamArticle() {
       case 'priority':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             <View className='priority-list'>
@@ -414,7 +416,6 @@ export default function ExamArticle() {
       case 'mnemonics':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             <View className='mnemonic-list'>
@@ -439,7 +440,6 @@ export default function ExamArticle() {
       case 'study_material':
         bodyHtml = (
           <View>
-            <Text className='card-title' style={{ fontSize: styleVars['--title-size'] }}>{displayCard.title}</Text>
             <Text className='card-subtitle'>{displayCard.subtitle}</Text>
             <View className='card-divider' />
             {(displayCard.study_material ?? []).map((mod, mi) => (
@@ -513,7 +513,6 @@ export default function ExamArticle() {
     return store.pendingContent.cards.map((card, i) => {
       const isEditing = store.editingCardIndex === i
       const text = getCardPlainText(card)
-      const citations = card.citations ?? []
 
       const cardIssues = getCardIssues(i)
 
@@ -537,14 +536,16 @@ export default function ExamArticle() {
               <button className='btn-cancel-edit' onClick={cancelEditCard}>❌ 取消</button>
             </View>
             <View className='review-edit-form'>
-              <label className='edit-label'>
-                标题（title）
-                <textarea
-                  rows={2}
-                  value={editValues[`title_${i}`] ?? card.title}
-                  onChange={(e) => setEditValues(prev => ({ ...prev, [`title_${i}`]: e.target.value }))}
-                />
-              </label>
+              {card.type === 'cover' && (
+                <label className='edit-label'>
+                  标题（title）
+                  <textarea
+                    rows={2}
+                    value={editValues[`title_${i}`] ?? card.title}
+                    onChange={(e) => setEditValues(prev => ({ ...prev, [`title_${i}`]: e.target.value }))}
+                  />
+                </label>
+              )}
               <label className='edit-label'>
                 副标题（subtitle）
                 <input
@@ -636,25 +637,6 @@ export default function ExamArticle() {
           ) : (
             <Text className='review-text-block'>{text}</Text>
           )}
-          <View className={`citation-list ${citations.length === 0 ? 'empty' : ''}`}>
-            <Text className='citation-title'>引用资料</Text>
-            {citations.length === 0 ? (
-              <Text className='citation-empty'>暂无引用，不能审核通过</Text>
-            ) : (
-              citations.map((citation, ci) => (
-                <View key={ci} className='citation-item'>
-                  <Text className='citation-main'>
-                    {citation.assetTitle || citation.assetCode} v{citation.versionNo ?? 1}
-                    {' · '}
-                    {citation.heading || citation.fragmentCode}
-                  </Text>
-                  <Text className='citation-meta'>
-                    页码 {citation.pageFrom ?? '—'}-{citation.pageTo ?? '—'} · 密级 {citation.confidentiality ?? 'internal'}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
         </View>
       )
     })

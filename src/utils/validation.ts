@@ -84,7 +84,7 @@ export function escapeHtml(text: string): string {
  */
 export function getCardPlainText(card: CardData): string {
   const lines: string[] = []
-  if (card.title) lines.push(card.title)
+  if (card.type === 'cover' && card.title) lines.push(card.title)
   if (card.subtitle) lines.push(card.subtitle)
 
   if (card.type === 'plan' && card.days && card.days.length > 0) {

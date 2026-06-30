@@ -28,19 +28,20 @@
 - **P4** ✅ 已完成：Taro 新增 `V2闭环` 入口，展示证书/考试/资格/知识/题库/权限/生成引用闭环，H5 build OK，P4 scoped lint OK，backend 149 tests，P3 golden set PASS，见 `reports/P4_FRONTEND_FLOW_SELF_TEST.md`。
 - **P5** ✅ 代码路径已完成：后端模型网关/Dify 配置入口、失败落库、引用非空门禁、前端不持密钥；定向生成测试 6 passed，见 `reports/P5_MODEL_GATEWAY_SELF_TEST.md`。真实 Dify smoke 需在后端密钥环境执行。
 - **P6** ✅ 已完成：新增运维证据 CLI，可生成 DB manifest、恢复对比、API 监控摘要；本地 DB manifest smoke 通过，发布门禁样例 pass，见 `reports/P6_PRODUCTION_OPS_SELF_TEST.md`。
+- **P8** ⏳ 待执行：小红书策略化生成 MVP。先把“固定卡片模板生成”升级为“内容策略 + 钩子 + 卡片角色”的生成方式，详见 `docs/implementation/P8_XHS_STRATEGY_MVP_PLAN.md`。
 
-## 下一步（V2 MVP 工作包已全部完成）
+## 下一步（先执行 P8）
 
 WP00-WP16 已按 MVP 口径完成，WP06-WP16 已统一进入提交 `825648f feat: complete v2 knowledge platform mvp`。
 
-后续不再继续按 WP 编号盲推，改按 `docs/implementation/V2_MVP_TO_PRODUCTION_PLAN.md` 的 P0-P7 阶段一步一步执行。
+后续不再继续按 WP 编号盲推，改按 `docs/implementation/V2_MVP_TO_PRODUCTION_PLAN.md` 的 P 阶段一步一步执行。
 
-建议下一步由用户明确选择：
+基于最新小红书样例分析，当前下一步已调整为：
 
-1. `P2-fix`：先处理 P2 needs_review 中的高优先级项，例如本地演示库清理、执业药师报考年限官方核验；
-2. `P2-expand`：继续补省级报名时间/考区，或把一级建造师从骨架扩为完整闭环；
-3. `P5-real-smoke`：在有后端 Dify 密钥的环境，按 `reports/P5_MODEL_GATEWAY_SELF_TEST.md` 跑真实 Dify smoke；
-4. `P7`：进入内部灰度试用计划/灰度验证；
-5. `修改计划`：先调整 `V2_MVP_TO_PRODUCTION_PLAN.md` 的阶段或范围。
+1. 读 `docs/implementation/P8_XHS_STRATEGY_MVP_PLAN.md`；
+2. 按 P8 的 Step 1-6 执行；
+3. 先跑执业药师 + 药学专业知识（一）真实烟测；
+4. 输出 `docs/implementation/reports/P8_XHS_STRATEGY_MVP_SELF_TEST.md`；
+5. 通过后再决定进入 `P8-fix` 还是 `P7`。
 
-停止点：等待用户确认从 P2-fix、P2-expand、P5-real-smoke、P7 或修改计划开始；确认前不做功能代码改动。
+停止点：P8 只做策略化生成 MVP；不改数据库 schema，不做策略管理后台，不做复杂拖拽编辑器，不直接进入 P7 灰度。

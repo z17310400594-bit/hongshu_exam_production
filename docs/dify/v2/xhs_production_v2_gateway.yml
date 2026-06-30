@@ -1,10 +1,10 @@
 app:
-  description: V2 backend-gateway version. Dify only writes cards; V2 API handles data, ACL, citations, model routing, and audit.
+  description: V2 backend-gateway v1-style grouped version. Dify receives a V2 sourcePack and returns a full Xiaohongshu card set; V2 API handles data, ACL, citations, model routing, audit, parsing, and quality gates.
   icon: 🤖
   icon_background: '#FFEAD5'
   icon_type: emoji
   mode: workflow
-  name: 小红书生产 V2 网关版
+  name: 小红书生产 V2 网关整组版
   use_icon_as_answer_icon: false
 dependencies:
 - current_identifier: null
@@ -87,22 +87,10 @@ workflow:
     - data:
         isInLoop: false
         sourceType: llm
-        targetType: code
-      id: generate-source-clean-target
+        targetType: end
+      id: generate-source-end-target
       selected: false
       source: generate_cards
-      sourceHandle: source
-      target: clean_output
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInLoop: false
-        sourceType: code
-        targetType: end
-      id: clean-source-end-target
-      selected: false
-      source: clean_output
       sourceHandle: source
       target: end
       targetHandle: target
@@ -146,11 +134,11 @@ workflow:
           required: true
           type: paragraph
           variable: generationInputs
-        - default: '["cover","plan","notice","cta"]'
-          hint: JSON array string of card types.
+        - default: '["cover"]'
+          hint: JSON array string. V2 backend passes the full requested card sequence for v1-style grouped generation.
           label: cardSequence
           options: []
-          placeholder: '["cover","plan","notice","cta"]'
+          placeholder: '["cover"]'
           required: true
           type: paragraph
           variable: cardSequence
@@ -210,12 +198,24 @@ workflow:
                   return default
               return str(value).strip()
 
+          CARD_INSTRUCTIONS = {
+              "cover": "封面：强人群钩子 + 倒计时/焦虑释放 + 明确资料承诺。title/subtitle 都必须有爆款感。",
+              "plan": "学习计划：必须输出 3 个阶段 days，每个阶段都有 date/task/duration；task 必须具体到章节/模块/动作。",
+              "subjects": "考试科目/重点：输出 4 个 items，不编造分值；用“优先抓/重点看/容易混”表达。",
+              "notice": "考前提醒/避坑：没有官方事实时，不编造时间，改写成备考注意事项，并注明官方安排以准考证/通知为准。",
+              "resources": "备考资料：输出 5 个 items，围绕教材、考点、秘籍、题库、错题表，像资料领取清单。",
+              "priority": "优先级：输出 4 个 items，用高/中/低优先级，不要编造具体分值。",
+              "mnemonics": "口诀/记忆法：输出 3-4 个 items，只围绕素材包中的考点编。",
+              "study_material": "学习资料：输出 3 个 study_material 模块，每个模块 3 个 key_points + 1-2 条 memory_tips。",
+              "cta": "行动引导：口语化收尾，提示收藏、评论、领取资料，不夸大承诺。",
+          }
+
           def _normalize_sequence(raw):
-              sequence = _loads(raw, ["cover", "plan", "notice", "cta"])
+              sequence = _loads(raw, ["cover"])
               if isinstance(sequence, str):
                   sequence = [item.strip() for item in sequence.split(",") if item.strip()]
               if not isinstance(sequence, list):
-                  sequence = ["cover", "plan", "notice", "cta"]
+                  sequence = ["cover"]
               normalized = []
               for item in sequence:
                   if isinstance(item, dict):
@@ -224,7 +224,7 @@ workflow:
                       card_type = _safe_str(item)
                   if card_type in CARD_TYPES:
                       normalized.append(card_type)
-              return normalized or ["cover", "plan", "notice", "cta"]
+              return (normalized or ["cover"])[:8]
 
           def _normalize_citations(raw):
               citations = _loads(raw, [])
@@ -296,36 +296,47 @@ workflow:
               theme = _safe_str(inputs.get("theme") or "高效备考")
               countdown_days = _days_to_exam(exam_date, inputs.get("countdownDays") or inputs.get("countdown_days"))
 
-              cards = []
-              for index, card_type in enumerate(sequence, start=1):
-                  cards.append({
+              source_pack = inputs.get("sourcePack") if isinstance(inputs.get("sourcePack"), dict) else {}
+              source_pack_json = json.dumps(source_pack, ensure_ascii=False)
+              card_instructions = [
+                  f"{card_type}: {CARD_INSTRUCTIONS.get(card_type, CARD_INSTRUCTIONS['cover'])}"
+                  for card_type in sequence
+              ]
+              card_instructions_text = "\n".join(f"- {line}" for line in card_instructions)
+
+              cards = [
+                  {
                       "type": card_type,
                       "index": index,
                       "totalCards": len(sequence),
-                      "citations": citation_list,
-                  })
+                      "citations": [],
+                  }
+                  for index, card_type in enumerate(sequence, start=1)
+              ]
 
               brief = _safe_str(factsBrief) or _brief_from_citations(citation_list)
               public_citations_json = json.dumps(citation_list, ensure_ascii=False)
               cards_json = json.dumps(cards, ensure_ascii=False)
 
               system_prompt = f"""
-          你是一个“小红书备考卡片”生成器。你只负责写卡片文案，不负责查数据库。
+          你是一个“小红书备考整组图文”总编辑。你要像 v1 旧版爆款逻辑一样，先理解整组节奏，再输出完整 cards 数组。
 
           硬约束：
           1. 只能使用【V2授权事实】里的信息作为事实来源。
           2. 不得编造考试日期、报名时间、合格标准、报考条件、政策条款、真题年份、具体分值。
           3. 如果引用里没有某个事实，就写“以官方通知为准”或“待官方发布”，不要补数字。
           4. 输出必须是纯 JSON，不要 Markdown，不要解释。
-          5. 顶层必须是 {{"cards": [...]}}。
-          6. 每张卡必须包含 citations 字段；如果该卡没有专属引用，就继承输入 citations。
+          5. 顶层必须是 {{"cards": [...]}}，cards 数组必须按【当前卡片骨架】的顺序输出完整卡组。
+          6. 每张卡必须包含 citations 字段，但固定输出空数组 []；引用由 V2 后端统一补回，禁止把引用 JSON 复制进卡片正文。
           7. qrcode_url 固定为空字符串。
           8. days/items/study_material 必须是数组，不能是 null。
           9. 标题和正文要像小红书，不要像政策公告；但事实边界必须稳。
           10. 严禁照抄空模板；每张卡 title 和 subtitle 不得为空。
-          11. 每张卡至少生成 1 条 items；如果事实不足，items 中必须写“以官方通知为准/待官方发布”的安全表达。
+          11. 除 cover/cta 外，每张卡至少生成 2 条可渲染内容；不能输出空括号、undefined、空 task。
           12. cover/plan/notice/cta/resources/priority/mnemonics/subjects 卡片的 title 至少 6 个中文字符或 12 个英文字符。
-          13. 如果你无法生成某张卡，也要输出安全兜底文案，不能输出空字符串。
+          13. 如果事实不足，仍由 LLM 写安全表达；不要输出空字符串，也不要依赖代码节点补文案。
+          14. 禁止输出 <think>、思考过程、分析过程；只输出最终 JSON。
+          15. 小红书结构要像“保姆级备考计划”：封面抓人，计划可执行，重点有干货，资料有领取感，结尾促行动。
 
           角色：{role}
           目标人群：{target_audience}
@@ -333,39 +344,42 @@ workflow:
           """.strip()
 
               user_prompt = f"""
-          请为以下考试生成一组小红书备考卡片。
+          请为以下考试生成一整组小红书备考图文卡片。你必须先在心里规划整组节奏，但最终只输出 JSON。
 
           考试名称：{exam_name}
           考试日期：{exam_date or "未提供"}
           距离考试：{countdown_days} 天
           证书编码：{certificateCode}
-          卡片序列：{json.dumps(sequence, ensure_ascii=False)}
+          卡片序列：{", ".join(sequence)}
 
           【V2授权事实】
           {brief}
 
+          【V2素材包 sourcePack】
+          {source_pack_json}
+
           【引用 JSON】
           {public_citations_json}
+          注意：引用 JSON 只用于理解来源，不要输出到 cards[*].citations。
 
-          【要生成的卡片骨架】
+          【当前卡片骨架】
           {cards_json}
 
-          每类卡片要求：
-          - cover：制造人群钩子和考试时间压力，不编造政策数字。
-          - plan：给阶段建议；如果缺少阶段日期，就用“今天开始/考前”这种相对表达。
-          - subjects：没有真实科目/分值引用时，不写具体分值，只写策略。
-          - notice：只从引用中提取考前提醒；缺失则写“以准考证/官方通知为准”。
-          - resources：生成通用资料清单，不声称公司已有资料，除非引用中出现。
-          - priority：没有分值引用时，用“优先级”而不是“约 XX 分”。
-          - mnemonics：只围绕引用中的考点或主题编口诀。
-          - study_material：输出 2-3 个模块，每个模块包含 module_title/key_points/memory_tips。
-          - cta：收尾行动引导，口语化、轻促转化。
+          每类卡片写作要求：
+          {card_instructions_text}
+
+          强 schema 要求：
+          - plan.days 必须至少 3 条，每条必须有 date、task、duration；不要输出“（）”。
+          - subjects/priority/resources/notice/mnemonics 的 items 必须有 label 和 content，content 不能为空。
+          - study_material 必须输出 3 个模块，每个模块含 module_title、key_points、memory_tips。
+          - cta 可以不写 title，但 subtitle/items 必须有行动引导。
+          - 如果缺少官方考试时间/准考证事实，只能写“以官方通知/准考证为准”，但不要让整张卡只剩这一句话。
 
           输出格式：
           {{
             "cards": [
               {{
-                "type": "cover",
+                "type": "cover | plan | subjects | notice | cta | resources | priority | mnemonics | study_material",
                 "title": "",
                 "subtitle": "",
                 "days": [],
@@ -487,160 +501,12 @@ workflow:
       type: custom
       width: 260
     - data:
-        code: |
-          import json
-          import re
-
-          CARD_TYPES = {
-              "cover", "plan", "subjects", "notice", "cta",
-              "resources", "priority", "mnemonics", "study_material",
-          }
-
-          def _loads(value, fallback):
-              if isinstance(value, (dict, list)):
-                  return value
-              if not isinstance(value, str) or not value.strip():
-                  return fallback
-              text = value.strip()
-              text = re.sub(r"^```(?:json)?\s*", "", text)
-              text = re.sub(r"\s*```$", "", text)
-              try:
-                  return json.loads(text)
-              except Exception:
-                  match = re.search(r"\{[\s\S]*\}", text)
-                  if match:
-                      try:
-                          return json.loads(match.group(0))
-                      except Exception:
-                          return fallback
-                  return fallback
-
-          def _normalize_citations(raw):
-              data = _loads(raw, [])
-              if not isinstance(data, list):
-                  return []
-              normalized = []
-              for item in data:
-                  if isinstance(item, dict):
-                      normalized.append(item)
-              return normalized
-
-          def _normalize_card(card, fallback_type, fallback_citations):
-              if not isinstance(card, dict):
-                  card = {}
-              card_type = str(card.get("type") or fallback_type or "cover").strip()
-              if card_type not in CARD_TYPES:
-                  card_type = fallback_type if fallback_type in CARD_TYPES else "cover"
-              normalized = {
-                  "type": card_type,
-                  "title": str(card.get("title") or ""),
-                  "subtitle": str(card.get("subtitle") or ""),
-                  "days": card.get("days") if isinstance(card.get("days"), list) else [],
-                  "items": card.get("items") if isinstance(card.get("items"), list) else [],
-                  "qrcode_url": str(card.get("qrcode_url") or ""),
-                  "citations": card.get("citations") if isinstance(card.get("citations"), list) else fallback_citations,
-              }
-              if card_type == "study_material":
-                  normalized["study_material"] = (
-                      card.get("study_material")
-                      if isinstance(card.get("study_material"), list)
-                      else []
-                  )
-              elif isinstance(card.get("study_material"), list):
-                  normalized["study_material"] = card.get("study_material")
-              return normalized
-
-          def main(llm_text: str, cards_json: str = "[]", citations_json: str = "[]") -> dict:
-              parsed = _loads(llm_text, {})
-              skeleton = _loads(cards_json, [])
-              fallback_citations = _normalize_citations(citations_json)
-              if isinstance(parsed, dict):
-                  raw_cards = parsed.get("cards", [])
-              elif isinstance(parsed, list):
-                  raw_cards = parsed
-              else:
-                  raw_cards = []
-
-              if not isinstance(raw_cards, list):
-                  raw_cards = []
-              if not isinstance(skeleton, list):
-                  skeleton = []
-
-              max_len = max(len(raw_cards), len(skeleton))
-              cards = []
-              for idx in range(max_len):
-                  raw = raw_cards[idx] if idx < len(raw_cards) else {}
-                  fallback_type = ""
-                  if idx < len(skeleton) and isinstance(skeleton[idx], dict):
-                      fallback_type = skeleton[idx].get("type", "")
-                  cards.append(_normalize_card(raw, fallback_type, fallback_citations))
-
-              if not cards:
-                  cards = [
-                      {
-                          "type": "cover",
-                          "title": "生成结果待重试",
-                          "subtitle": "模型未返回可解析 JSON",
-                          "days": [],
-                          "items": [{"label": "提示", "content": "请重试生成，或检查 Dify 工作流输出格式。"}],
-                          "qrcode_url": "",
-                          "citations": fallback_citations,
-                      }
-                  ]
-
-              return {"cards": cards, "result": json.dumps({"cards": cards}, ensure_ascii=False)}
-        code_language: python3
         outputs:
-          cards:
-            children: null
-            type: array[object]
-          result:
-            children: null
-            type: string
-        selected: false
-        title: 清洗输出
-        type: code
-        variables:
         - value_selector:
           - generate_cards
           - text
           value_type: string
-          variable: llm_text
-        - value_selector:
-          - adapt_inputs
-          - cards_json
-          value_type: string
-          variable: cards_json
-        - value_selector:
-          - adapt_inputs
-          - citations_json
-          value_type: string
-          variable: citations_json
-      height: 54
-      id: clean_output
-      position:
-        x: 570
-        y: 310
-      positionAbsolute:
-        x: 570
-        y: 310
-      selected: false
-      sourcePosition: right
-      targetPosition: left
-      type: custom
-      width: 260
-    - data:
-        outputs:
-        - value_selector:
-          - clean_output
-          - cards
-          value_type: array[object]
-          variable: cards
-        - value_selector:
-          - clean_output
-          - result
-          value_type: string
-          variable: result
+          variable: text
         selected: false
         title: 输出
         type: end

@@ -183,36 +183,41 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
     const { certificateCode, examName, examDate, cardSequence, targetAudience, targetAudienceCustom, theme, themeCustom } = get()
     set({ isGenerating: true, progressSteps: [] })
 
-    const result = await generateCards(
-      {
-        certificateCode,
-        examName,
-        examDate,
-        cardSequence,
-        role: get().role,
-        targetAudience: targetAudience || targetAudienceCustom,
-        theme: theme || themeCustom,
-      },
-      (step, label) => {
-        set(state => ({
-          progressSteps: [
-            ...state.progressSteps.filter(s => s.id !== step),
-            { id: step, label, status: 'current' as const },
-          ].sort((a, b) => a.id - b.id),
-        }))
-      },
-    )
+    try {
+      const result = await generateCards(
+        {
+          certificateCode,
+          examName,
+          examDate,
+          cardSequence,
+          role: get().role,
+          targetAudience: targetAudience || targetAudienceCustom,
+          theme: theme || themeCustom,
+        },
+        (step, label) => {
+          set(state => ({
+            progressSteps: [
+              ...state.progressSteps.filter(s => s.id !== step),
+              { id: step, label, status: 'current' as const },
+            ].sort((a, b) => a.id - b.id),
+          }))
+        },
+      )
 
-    // 保存初始快照
-    const content = result as GeneratedContent
-    set({
-      isGenerating: false,
-      pendingContent: deepClone(content),
-      originalContent: deepClone(content),
-      reviewModifications: [],
-      editingCardIndex: -1,
-      isReviewing: true,
-    })
+      // 保存初始快照
+      const content = result as GeneratedContent
+      set({
+        isGenerating: false,
+        pendingContent: deepClone(content),
+        originalContent: deepClone(content),
+        reviewModifications: [],
+        editingCardIndex: -1,
+        isReviewing: true,
+      })
+    } catch (error) {
+      set({ isGenerating: false })
+      throw error
+    }
   },
 
   openReview: () => set({ isReviewing: true }),

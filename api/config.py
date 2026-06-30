@@ -28,7 +28,10 @@ class Settings(BaseSettings):
     dify_api_url: str = ""
     dify_api_key: str = ""
     generation_provider: str = "local"
-    model_gateway_timeout_seconds: float = 30.0
+    generation_orchestration_mode: str = "v1_style"
+    # <= 0 disables the HTTP client timeout. Long Dify workflows can exceed
+    # several minutes because the API waits for model queueing + generation.
+    model_gateway_timeout_seconds: float = 0.0
 
     @property
     def database_url(self) -> str:

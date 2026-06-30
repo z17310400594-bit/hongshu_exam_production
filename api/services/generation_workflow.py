@@ -42,6 +42,16 @@ def create_generation(
 ) -> dict[str, Any]:
     """Create one synchronous MVP generation run with citations and output."""
     requested_collections = [code for code in collection_codes if code]
+    is_pharmacist_generation = _is_pharmacist_generation(certificate_code=certificate_code, inputs=inputs)
+    requested_knowledge_points = [code for code in knowledge_point_codes if code]
+    asset_code_prefix = None
+    asset_types: list[str] = []
+    random_seed = idempotency_key or _build_generation_query(inputs)
+    if is_pharmacist_generation:
+        requested_knowledge_points = ["pharm_2026_general"]
+        asset_code_prefix = "pharm_2026_%"
+        asset_types = ["textbook", "handout", "manual"]
+
     for code in requested_collections:
         check_collection_access(
             engine,
@@ -56,8 +66,12 @@ def create_generation(
         principal_type=principal_type,
         principal_code=principal_code,
         collection_codes=requested_collections,
-        knowledge_point_codes=[code for code in knowledge_point_codes if code],
+        knowledge_point_codes=requested_knowledge_points,
         query=_build_generation_query(inputs),
+        asset_code_prefix=asset_code_prefix,
+        asset_types=asset_types,
+        random_seed=random_seed,
+        randomize=is_pharmacist_generation,
         limit=5,
     )
     if not citations:
@@ -291,6 +305,10 @@ def _select_generation_citations(
     collection_codes: list[str],
     knowledge_point_codes: list[str],
     query: str,
+    asset_code_prefix: str | None = None,
+    asset_types: list[str] | None = None,
+    random_seed: str | None = None,
+    randomize: bool = False,
     limit: int,
 ) -> list[dict[str, Any]]:
     params: dict[str, Any] = {
@@ -298,6 +316,8 @@ def _select_generation_citations(
         "principal_code": principal_code,
         "query": query,
         "query_like": f"%{query.lower()}%",
+        "randomize": randomize,
+        "random_seed": random_seed or query or "generation",
         "limit": limit,
     }
     filters = [
@@ -316,33 +336,49 @@ def _select_generation_citations(
         params["knowledge_point_codes"] = tuple(knowledge_point_codes)
         filters.append("kp.code IN :knowledge_point_codes")
         bindparams.append(bindparam("knowledge_point_codes", expanding=True))
+    if asset_code_prefix:
+        params["asset_code_prefix"] = asset_code_prefix
+        filters.append("a.code LIKE :asset_code_prefix")
+    if asset_types:
+        params["asset_types"] = tuple(asset_types)
+        filters.append("a.asset_type IN :asset_types")
+        bindparams.append(bindparam("asset_types", expanding=True))
     statement = text(f"""
-        SELECT DISTINCT ON (f.id)
-            f.id AS fragment_id,
-            f.fragment_code,
-            f.heading,
-            f.content,
-            f.page_from,
-            f.page_to,
-            a.code AS asset_code,
-            a.title AS asset_title,
-            a.asset_type,
-            a.confidentiality AS asset_confidentiality,
-            av.version_no,
-            c.code AS collection_code,
-            fkp.confidence
-          FROM knowledge.fragment f
-          JOIN knowledge.asset_version av ON av.id = f.asset_version_id
-          JOIN knowledge.asset a ON a.id = av.asset_id
-          JOIN knowledge.collection c ON c.id = a.collection_id
-          JOIN knowledge.collection_acl acl ON acl.collection_id = c.id
-          JOIN knowledge.fragment_knowledge_point fkp ON fkp.fragment_id = f.id
-          JOIN knowledge.knowledge_point kp ON kp.id = fkp.kp_id
-         WHERE acl.principal_type = :principal_type
-           AND acl.principal_code = :principal_code
-           AND acl.permission = 'read'
-           AND {" AND ".join(filters)}
-         ORDER BY f.id, fkp.confidence DESC, a.code, f.fragment_code
+        WITH candidates AS (
+            SELECT DISTINCT ON (f.id)
+                f.id AS fragment_id,
+                f.fragment_code,
+                f.heading,
+                f.content,
+                f.page_from,
+                f.page_to,
+                a.code AS asset_code,
+                a.title AS asset_title,
+                a.asset_type,
+                a.confidentiality AS asset_confidentiality,
+                av.version_no,
+                c.code AS collection_code,
+                fkp.confidence
+              FROM knowledge.fragment f
+              JOIN knowledge.asset_version av ON av.id = f.asset_version_id
+              JOIN knowledge.asset a ON a.id = av.asset_id
+              JOIN knowledge.collection c ON c.id = a.collection_id
+              JOIN knowledge.collection_acl acl ON acl.collection_id = c.id
+              JOIN knowledge.fragment_knowledge_point fkp ON fkp.fragment_id = f.id
+              JOIN knowledge.knowledge_point kp ON kp.id = fkp.kp_id
+             WHERE acl.principal_type = :principal_type
+               AND acl.principal_code = :principal_code
+               AND acl.permission = 'read'
+               AND {" AND ".join(filters)}
+             ORDER BY f.id, fkp.confidence DESC, a.code, f.fragment_code
+        )
+        SELECT *
+          FROM candidates
+         ORDER BY
+            CASE WHEN :randomize THEN md5(fragment_id::text || :random_seed) END,
+            confidence DESC,
+            asset_code,
+            fragment_code
          LIMIT :limit
     """)
     if bindparams:
@@ -368,6 +404,18 @@ def _select_generation_citations(
         }
         for row in rows
     ]
+
+
+def _is_pharmacist_generation(*, certificate_code: str | None, inputs: dict[str, Any]) -> bool:
+    certificate_value = (certificate_code or "").lower()
+    if "pharmacist" in certificate_value or "药师" in certificate_value:
+        return True
+    text_values = [
+        str(inputs.get("examName") or ""),
+        str(inputs.get("theme") or ""),
+        str(inputs.get("targetAudience") or ""),
+    ]
+    return any("执业药师" in value or "药师" in value for value in text_values)
 
 
 def _build_generation_query(inputs: dict[str, Any]) -> str:
