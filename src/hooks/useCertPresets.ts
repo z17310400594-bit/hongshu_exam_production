@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect } from 'react'
 import type { ExamCategory } from '@/types/topic-finder'
 import type { CertRecord } from '@/types/policy'
 import { fetchCerts as fetchLegacyCerts } from '@/services/policyApi'
+import { EXAM_CATEGORIES } from '@/constants/exam-categories'
 import {
   fetchV2CertificateExamDate,
   fetchV2Certificates,
@@ -57,10 +58,10 @@ export function useCertPresets(): {
     request
       .then(options => {
         if (cancelled) return
-        setCertOptions(options)
+        setCertOptions(options.length > 0 ? options : EXAM_CATEGORIES)
       })
       .catch(() => {
-        // API unavailable — keep empty list
+        if (!cancelled) setCertOptions(EXAM_CATEGORIES)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
