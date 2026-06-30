@@ -1,0 +1,664 @@
+app:
+  description: V2 backend-gateway version. Dify only writes cards; V2 API handles data, ACL, citations, model routing, and audit.
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: 小红书生产 V2 网关版
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.17@f7a5c1d222d17ee419b17a80d6e4923838fe93788dc724a3af73fbc6990b3a32
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+      allowed_file_extensions: []
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: start-source-adapt-target
+      selected: false
+      source: start
+      sourceHandle: source
+      target: adapt_inputs
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: adapt-source-generate-target
+      selected: false
+      source: adapt_inputs
+      sourceHandle: source
+      target: generate_cards
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: generate-source-clean-target
+      selected: false
+      source: generate_cards
+      sourceHandle: source
+      target: clean_output
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: clean-source-end-target
+      selected: false
+      source: clean_output
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: V2 输入
+        type: start
+        variables:
+        - default: exam_article
+          hint: V2 application code, usually exam_article.
+          label: applicationCode
+          options: []
+          placeholder: exam_article
+          required: false
+          type: text-input
+          variable: applicationCode
+        - default: card_set
+          hint: V2 output type, usually card_set.
+          label: outputType
+          options: []
+          placeholder: card_set
+          required: false
+          type: text-input
+          variable: outputType
+        - default: ''
+          hint: V2 certificate code, such as c_constructor_1.
+          label: certificateCode
+          options: []
+          placeholder: c_xxx
+          required: false
+          type: text-input
+          variable: certificateCode
+        - default: '{}'
+          hint: JSON string from V2 API. Includes examName, examDate, role, targetAudience, theme, countdownDays, phase1End, phase2End.
+          label: generationInputs
+          options: []
+          placeholder: '{"examName":"一级建造师","examDate":"2026-09-20","role":"小红书-建工号","targetAudience":"在职备考","theme":"30天冲刺"}'
+          required: true
+          type: paragraph
+          variable: generationInputs
+        - default: '["cover","plan","notice","cta"]'
+          hint: JSON array string of card types.
+          label: cardSequence
+          options: []
+          placeholder: '["cover","plan","notice","cta"]'
+          required: true
+          type: paragraph
+          variable: cardSequence
+        - default: '[]'
+          hint: JSON array string. Already ACL-filtered by V2 API. Do not query database in Dify.
+          label: citations
+          options: []
+          placeholder: '[{"assetCode":"asset_demo","fragmentCode":"frag_demo","heading":"考试安排","quote":"考试安排以官方通知为准。"}]'
+          required: false
+          type: paragraph
+          variable: citations
+        - default: ''
+          hint: Optional facts summary generated by V2 API. If empty, this workflow builds one from citations.
+          label: factsBrief
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: factsBrief
+      height: 296
+      id: start
+      position:
+        x: -420
+        y: 220
+      positionAbsolute:
+        x: -420
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        code: |
+          import json
+          from datetime import datetime
+
+          CARD_TYPES = {
+              "cover", "plan", "subjects", "notice", "cta",
+              "resources", "priority", "mnemonics", "study_material",
+          }
+
+          def _loads(value, fallback):
+              if value is None:
+                  return fallback
+              if isinstance(value, (dict, list)):
+                  return value
+              if not isinstance(value, str) or not value.strip():
+                  return fallback
+              try:
+                  return json.loads(value)
+              except Exception:
+                  return fallback
+
+          def _safe_str(value, default=""):
+              if value is None:
+                  return default
+              return str(value).strip()
+
+          def _normalize_sequence(raw):
+              sequence = _loads(raw, ["cover", "plan", "notice", "cta"])
+              if isinstance(sequence, str):
+                  sequence = [item.strip() for item in sequence.split(",") if item.strip()]
+              if not isinstance(sequence, list):
+                  sequence = ["cover", "plan", "notice", "cta"]
+              normalized = []
+              for item in sequence:
+                  if isinstance(item, dict):
+                      card_type = _safe_str(item.get("type"))
+                  else:
+                      card_type = _safe_str(item)
+                  if card_type in CARD_TYPES:
+                      normalized.append(card_type)
+              return normalized or ["cover", "plan", "notice", "cta"]
+
+          def _normalize_citations(raw):
+              citations = _loads(raw, [])
+              if not isinstance(citations, list):
+                  return []
+              normalized = []
+              for item in citations:
+                  if not isinstance(item, dict):
+                      continue
+                  normalized.append({
+                      "assetCode": _safe_str(item.get("assetCode")),
+                      "assetTitle": _safe_str(item.get("assetTitle")),
+                      "assetType": _safe_str(item.get("assetType")),
+                      "versionNo": item.get("versionNo"),
+                      "fragmentCode": _safe_str(item.get("fragmentCode")),
+                      "heading": _safe_str(item.get("heading")),
+                      "pageFrom": item.get("pageFrom"),
+                      "pageTo": item.get("pageTo"),
+                      "confidentiality": _safe_str(item.get("confidentiality"), "internal"),
+                      "quote": _safe_str(item.get("quote"))[:240],
+                  })
+              return normalized[:8]
+
+          def _brief_from_citations(citations):
+              if not citations:
+                  return "暂无权威引用。涉及考试时间、报名条件、分数线、政策条款时不要写具体数字；使用“以官方通知为准”或“待官方发布”。"
+              lines = ["以下为 V2 后端已完成权限过滤的引用片段，只能使用这些事实："]
+              for i, item in enumerate(citations, start=1):
+                  source = item.get("assetTitle") or item.get("assetCode") or "资料"
+                  heading = item.get("heading") or item.get("fragmentCode") or "片段"
+                  quote = item.get("quote") or ""
+                  page = ""
+                  if item.get("pageFrom"):
+                      page = f" p.{item.get('pageFrom')}"
+                  lines.append(f"{i}. [{source}{page}] {heading}：{quote}")
+              return "\n".join(lines)
+
+          def _days_to_exam(exam_date, countdown_days):
+              if countdown_days not in ("", None):
+                  try:
+                      return max(0, int(countdown_days))
+                  except Exception:
+                      pass
+              try:
+                  exam_d = datetime.strptime(exam_date, "%Y-%m-%d").date()
+                  return max(0, (exam_d - datetime.now().date()).days)
+              except Exception:
+                  return 0
+
+          def main(
+              applicationCode: str = "exam_article",
+              outputType: str = "card_set",
+              certificateCode: str = "",
+              generationInputs: str = "{}",
+              cardSequence: str = "[]",
+              citations: str = "[]",
+              factsBrief: str = "",
+          ) -> dict:
+              inputs = _loads(generationInputs, {})
+              if not isinstance(inputs, dict):
+                  inputs = {}
+              sequence = _normalize_sequence(cardSequence)
+              citation_list = _normalize_citations(citations)
+
+              exam_name = _safe_str(inputs.get("examName") or inputs.get("exam_name") or "考试")
+              exam_date = _safe_str(inputs.get("examDate") or inputs.get("exam_date"))
+              role = _safe_str(inputs.get("role") or "小红书-备考号")
+              target_audience = _safe_str(inputs.get("targetAudience") or inputs.get("target_audience") or "备考人群")
+              theme = _safe_str(inputs.get("theme") or "高效备考")
+              countdown_days = _days_to_exam(exam_date, inputs.get("countdownDays") or inputs.get("countdown_days"))
+
+              cards = []
+              for index, card_type in enumerate(sequence, start=1):
+                  cards.append({
+                      "type": card_type,
+                      "index": index,
+                      "totalCards": len(sequence),
+                      "citations": citation_list,
+                  })
+
+              brief = _safe_str(factsBrief) or _brief_from_citations(citation_list)
+              public_citations_json = json.dumps(citation_list, ensure_ascii=False)
+              cards_json = json.dumps(cards, ensure_ascii=False)
+
+              system_prompt = f"""
+          你是一个“小红书备考卡片”生成器。你只负责写卡片文案，不负责查数据库。
+
+          硬约束：
+          1. 只能使用【V2授权事实】里的信息作为事实来源。
+          2. 不得编造考试日期、报名时间、合格标准、报考条件、政策条款、真题年份、具体分值。
+          3. 如果引用里没有某个事实，就写“以官方通知为准”或“待官方发布”，不要补数字。
+          4. 输出必须是纯 JSON，不要 Markdown，不要解释。
+          5. 顶层必须是 {{"cards": [...]}}。
+          6. 每张卡必须包含 citations 字段；如果该卡没有专属引用，就继承输入 citations。
+          7. qrcode_url 固定为空字符串。
+          8. days/items/study_material 必须是数组，不能是 null。
+          9. 标题和正文要像小红书，不要像政策公告；但事实边界必须稳。
+          10. 严禁照抄空模板；每张卡 title 和 subtitle 不得为空。
+          11. 每张卡至少生成 1 条 items；如果事实不足，items 中必须写“以官方通知为准/待官方发布”的安全表达。
+          12. cover/plan/notice/cta/resources/priority/mnemonics/subjects 卡片的 title 至少 6 个中文字符或 12 个英文字符。
+          13. 如果你无法生成某张卡，也要输出安全兜底文案，不能输出空字符串。
+
+          角色：{role}
+          目标人群：{target_audience}
+          主题方向：{theme}
+          """.strip()
+
+              user_prompt = f"""
+          请为以下考试生成一组小红书备考卡片。
+
+          考试名称：{exam_name}
+          考试日期：{exam_date or "未提供"}
+          距离考试：{countdown_days} 天
+          证书编码：{certificateCode}
+          卡片序列：{json.dumps(sequence, ensure_ascii=False)}
+
+          【V2授权事实】
+          {brief}
+
+          【引用 JSON】
+          {public_citations_json}
+
+          【要生成的卡片骨架】
+          {cards_json}
+
+          每类卡片要求：
+          - cover：制造人群钩子和考试时间压力，不编造政策数字。
+          - plan：给阶段建议；如果缺少阶段日期，就用“今天开始/考前”这种相对表达。
+          - subjects：没有真实科目/分值引用时，不写具体分值，只写策略。
+          - notice：只从引用中提取考前提醒；缺失则写“以准考证/官方通知为准”。
+          - resources：生成通用资料清单，不声称公司已有资料，除非引用中出现。
+          - priority：没有分值引用时，用“优先级”而不是“约 XX 分”。
+          - mnemonics：只围绕引用中的考点或主题编口诀。
+          - study_material：输出 2-3 个模块，每个模块包含 module_title/key_points/memory_tips。
+          - cta：收尾行动引导，口语化、轻促转化。
+
+          输出格式：
+          {{
+            "cards": [
+              {{
+                "type": "cover",
+                "title": "",
+                "subtitle": "",
+                "days": [],
+                "items": [],
+                "qrcode_url": "",
+                "study_material": [],
+                "citations": []
+              }}
+            ]
+          }}
+          """.strip()
+
+              return {
+                  "system_prompt": system_prompt,
+                  "user_prompt": user_prompt,
+                  "cards_json": cards_json,
+                  "citations_json": public_citations_json,
+              }
+        code_language: python3
+        outputs:
+          cards_json:
+            children: null
+            type: string
+          citations_json:
+            children: null
+            type: string
+          system_prompt:
+            children: null
+            type: string
+          user_prompt:
+            children: null
+            type: string
+        selected: false
+        title: 输入适配
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - applicationCode
+          value_type: string
+          variable: applicationCode
+        - value_selector:
+          - start
+          - outputType
+          value_type: string
+          variable: outputType
+        - value_selector:
+          - start
+          - certificateCode
+          value_type: string
+          variable: certificateCode
+        - value_selector:
+          - start
+          - generationInputs
+          value_type: string
+          variable: generationInputs
+        - value_selector:
+          - start
+          - cardSequence
+          value_type: string
+          variable: cardSequence
+        - value_selector:
+          - start
+          - citations
+          value_type: string
+          variable: citations
+        - value_selector:
+          - start
+          - factsBrief
+          value_type: string
+          variable: factsBrief
+      height: 54
+      id: adapt_inputs
+      position:
+        x: -90
+        y: 310
+      positionAbsolute:
+        x: -90
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 8192
+            temperature: 0.35
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: sys-v2-xhs
+          role: system
+          text: '{{#adapt_inputs.system_prompt#}}'
+        - id: user-v2-xhs
+          role: user
+          text: '{{#adapt_inputs.user_prompt#}}'
+        selected: false
+        title: 生成卡片 JSON
+        type: llm
+        vision:
+          enabled: false
+      height: 98
+      id: generate_cards
+      position:
+        x: 240
+        y: 310
+      positionAbsolute:
+        x: 240
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        code: |
+          import json
+          import re
+
+          CARD_TYPES = {
+              "cover", "plan", "subjects", "notice", "cta",
+              "resources", "priority", "mnemonics", "study_material",
+          }
+
+          def _loads(value, fallback):
+              if isinstance(value, (dict, list)):
+                  return value
+              if not isinstance(value, str) or not value.strip():
+                  return fallback
+              text = value.strip()
+              text = re.sub(r"^```(?:json)?\s*", "", text)
+              text = re.sub(r"\s*```$", "", text)
+              try:
+                  return json.loads(text)
+              except Exception:
+                  match = re.search(r"\{[\s\S]*\}", text)
+                  if match:
+                      try:
+                          return json.loads(match.group(0))
+                      except Exception:
+                          return fallback
+                  return fallback
+
+          def _normalize_citations(raw):
+              data = _loads(raw, [])
+              if not isinstance(data, list):
+                  return []
+              normalized = []
+              for item in data:
+                  if isinstance(item, dict):
+                      normalized.append(item)
+              return normalized
+
+          def _normalize_card(card, fallback_type, fallback_citations):
+              if not isinstance(card, dict):
+                  card = {}
+              card_type = str(card.get("type") or fallback_type or "cover").strip()
+              if card_type not in CARD_TYPES:
+                  card_type = fallback_type if fallback_type in CARD_TYPES else "cover"
+              normalized = {
+                  "type": card_type,
+                  "title": str(card.get("title") or ""),
+                  "subtitle": str(card.get("subtitle") or ""),
+                  "days": card.get("days") if isinstance(card.get("days"), list) else [],
+                  "items": card.get("items") if isinstance(card.get("items"), list) else [],
+                  "qrcode_url": str(card.get("qrcode_url") or ""),
+                  "citations": card.get("citations") if isinstance(card.get("citations"), list) else fallback_citations,
+              }
+              if card_type == "study_material":
+                  normalized["study_material"] = (
+                      card.get("study_material")
+                      if isinstance(card.get("study_material"), list)
+                      else []
+                  )
+              elif isinstance(card.get("study_material"), list):
+                  normalized["study_material"] = card.get("study_material")
+              return normalized
+
+          def main(llm_text: str, cards_json: str = "[]", citations_json: str = "[]") -> dict:
+              parsed = _loads(llm_text, {})
+              skeleton = _loads(cards_json, [])
+              fallback_citations = _normalize_citations(citations_json)
+              if isinstance(parsed, dict):
+                  raw_cards = parsed.get("cards", [])
+              elif isinstance(parsed, list):
+                  raw_cards = parsed
+              else:
+                  raw_cards = []
+
+              if not isinstance(raw_cards, list):
+                  raw_cards = []
+              if not isinstance(skeleton, list):
+                  skeleton = []
+
+              max_len = max(len(raw_cards), len(skeleton))
+              cards = []
+              for idx in range(max_len):
+                  raw = raw_cards[idx] if idx < len(raw_cards) else {}
+                  fallback_type = ""
+                  if idx < len(skeleton) and isinstance(skeleton[idx], dict):
+                      fallback_type = skeleton[idx].get("type", "")
+                  cards.append(_normalize_card(raw, fallback_type, fallback_citations))
+
+              if not cards:
+                  cards = [
+                      {
+                          "type": "cover",
+                          "title": "生成结果待重试",
+                          "subtitle": "模型未返回可解析 JSON",
+                          "days": [],
+                          "items": [{"label": "提示", "content": "请重试生成，或检查 Dify 工作流输出格式。"}],
+                          "qrcode_url": "",
+                          "citations": fallback_citations,
+                      }
+                  ]
+
+              return {"cards": cards, "result": json.dumps({"cards": cards}, ensure_ascii=False)}
+        code_language: python3
+        outputs:
+          cards:
+            children: null
+            type: array[object]
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 清洗输出
+        type: code
+        variables:
+        - value_selector:
+          - generate_cards
+          - text
+          value_type: string
+          variable: llm_text
+        - value_selector:
+          - adapt_inputs
+          - cards_json
+          value_type: string
+          variable: cards_json
+        - value_selector:
+          - adapt_inputs
+          - citations_json
+          value_type: string
+          variable: citations_json
+      height: 54
+      id: clean_output
+      position:
+        x: 570
+        y: 310
+      positionAbsolute:
+        x: 570
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        outputs:
+        - value_selector:
+          - clean_output
+          - cards
+          value_type: array[object]
+          variable: cards
+        - value_selector:
+          - clean_output
+          - result
+          value_type: string
+          variable: result
+        selected: false
+        title: 输出
+        type: end
+      height: 88
+      id: end
+      position:
+        x: 900
+        y: 300
+      positionAbsolute:
+        x: 900
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    viewport:
+      x: 200
+      y: 50
+      zoom: 0.9
+  rag_pipeline_variables: []

@@ -105,6 +105,12 @@ def _seed_generation_sources(engine: Engine):
     return {"internal": internal, "restricted": restricted}
 
 
+@pytest.fixture(autouse=True)
+def _default_generation_provider(monkeypatch: pytest.MonkeyPatch):
+    """Keep workflow tests deterministic even when local .env enables Dify."""
+    monkeypatch.setattr(settings, "generation_provider", "local")
+
+
 def test_service_creates_generation_run_citations_and_output(engine: Engine):
     result = create_generation(
         engine,

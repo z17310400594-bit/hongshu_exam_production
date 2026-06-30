@@ -96,19 +96,17 @@ def _generate_with_dify(
             provider="dify",
         )
 
-    endpoint = f"{settings.dify_api_url.rstrip('/')}/v1/workflows/run"
-    payload = {
-        "inputs": {
-            "applicationCode": application_code,
-            "outputType": output_type,
-            "certificateCode": certificate_code or "",
-            "generationInputs": inputs,
-            "cardSequence": card_sequence,
-            "citations": [_public_citation(item) for item in citations],
-        },
-        "response_mode": "blocking",
-        "user": principal_code,
-    }
+    endpoint = _dify_workflow_endpoint(settings.dify_api_url)
+    payload = _dify_workflow_payload(
+        application_code=application_code,
+        output_type=output_type,
+        certificate_code=certificate_code,
+        principal_code=principal_code,
+        inputs=inputs,
+        card_sequence=card_sequence,
+        citations=citations,
+    )
+
     headers = {
         "Authorization": f"Bearer {settings.dify_api_key}",
         "Content-Type": "application/json",
@@ -147,7 +145,7 @@ def _generate_with_dify(
         ) from exc
 
     cards = _extract_cards_from_dify_response(body)
-    if not cards:
+    if not _cards_have_renderable_content(cards):
         raise ModelGatewayError(
             code="MODEL_GATEWAY_EMPTY_OUTPUT",
             message="Model gateway returned no cards",
@@ -160,6 +158,42 @@ def _generate_with_dify(
         cards=cards,
         raw_metadata=_dify_metadata(body),
     )
+
+
+def _dify_workflow_endpoint(api_url: str) -> str:
+    base = api_url.rstrip("/")
+    return f"{base}/workflows/run" if base.endswith("/v1") else f"{base}/v1/workflows/run"
+
+
+def _dify_workflow_payload(
+    *,
+    application_code: str,
+    output_type: str,
+    certificate_code: str | None,
+    principal_code: str,
+    inputs: dict[str, Any],
+    card_sequence: list[str],
+    citations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build a Dify workflow payload matching the exported V2 workflow.
+
+    The workflow declares JSON-ish values as paragraph variables, so send them
+    as JSON strings instead of raw objects. Its adapter code still accepts both,
+    but string inputs avoid Dify start-node type validation surprises.
+    """
+    return {
+        "inputs": {
+            "applicationCode": application_code,
+            "outputType": output_type,
+            "certificateCode": certificate_code or "",
+            "generationInputs": json.dumps(inputs, ensure_ascii=False),
+            "cardSequence": json.dumps(card_sequence, ensure_ascii=False),
+            "citations": json.dumps([_public_citation(item) for item in citations], ensure_ascii=False),
+            "factsBrief": "",
+        },
+        "response_mode": "blocking",
+        "user": principal_code,
+    }
 
 
 def _extract_cards_from_dify_response(body: dict[str, Any]) -> list[dict[str, Any]]:
@@ -201,6 +235,21 @@ def _parse_cards_candidate(candidate: Any) -> list[dict[str, Any]]:
             ]
         return _parse_cards_candidate(parsed)
     return []
+
+
+def _cards_have_renderable_content(cards: list[dict[str, Any]]) -> bool:
+    for card in cards:
+        if str(card.get("title") or "").strip():
+            return True
+        if str(card.get("subtitle") or "").strip():
+            return True
+        if card.get("items"):
+            return True
+        if card.get("days"):
+            return True
+        if card.get("study_material"):
+            return True
+    return False
 
 
 def _dify_metadata(body: dict[str, Any]) -> dict[str, Any]:
