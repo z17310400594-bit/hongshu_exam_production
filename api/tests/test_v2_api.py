@@ -186,6 +186,22 @@ def test_v2_certificate_query_returns_aliases_and_next_exam(engine: Engine):
     assert result["nextCursor"] is None
 
 
+def test_v2_certificate_list_prioritizes_business_catalog_before_smoke_fixtures(engine: Engine):
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO core.certificate (code, name, category_code, issuing_authority, nationwide)
+                VALUES ('z_wp12_business_cert', 'WP12 真实业务证书', 'business', '业务部门', true)
+                ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+            """),
+        )
+
+    result = list_certificates(engine, limit=2, as_of=date(2026, 6, 29))
+
+    assert result["items"][0]["code"] == "z_wp12_business_cert"
+    assert not result["items"][0]["code"].startswith("c_")
+
+
 def test_v2_certificate_query_deduplicates_display_aliases(engine: Engine):
     with engine.begin() as conn:
         conn.execute(

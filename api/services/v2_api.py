@@ -51,8 +51,10 @@ def list_certificates(
                 SELECT c.id, c.code, c.name, c.category_code, c.issuing_authority, c.nationwide
                   FROM core.certificate c
                  WHERE {filter_sql}
-                 ORDER BY c.code
-                 LIMIT :limit OFFSET :offset
+                 ORDER BY
+                    CASE WHEN left(c.code, 2) = 'c_' THEN 1 ELSE 0 END,
+                    c.code
+                  LIMIT :limit OFFSET :offset
             """),
             params,
         ).fetchall()
