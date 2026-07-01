@@ -316,6 +316,20 @@
   color: #344054;
   font-size: 14px;
   line-height: 1.75;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+
+  * {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  button {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 .xhs-empty {
