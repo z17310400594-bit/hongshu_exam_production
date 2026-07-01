@@ -13,6 +13,7 @@ from api.services.model_gateway import (
     _dify_workflow_payload,
     _extract_cards_from_dify_response,
     _facts_brief_from_citations,
+    _generate_local,
     _generate_with_dify,
     _model_gateway_timeout,
 )
@@ -473,3 +474,41 @@ def test_facts_brief_from_citations_makes_fact_boundary_explicit():
 
     assert "V2 后端已完成权限过滤" in brief
     assert "只允许使用这段合成事实" in brief
+
+
+def test_local_generator_supports_p8_resource_lead_structure():
+    result = _generate_local(
+        inputs={
+            "examName": "执业药师",
+            "examDate": "2026-10-18",
+            "targetAudience": "宝妈备考",
+            "contentGoal": "resource_lead",
+            "leadAssets": ["三色笔记", "高频考点 PDF"],
+            "commentKeyword": "药师资料",
+            "scriptNodes": [
+                {"id": "cover_hook", "label": "封面钩子", "cardType": "cover"},
+                {"id": "resource_bait", "label": "资料诱饵", "cardType": "resources"},
+            ],
+        },
+        card_sequence=["cover", "resources"],
+        citations=[
+            {
+                "assetCode": "A1",
+                "assetTitle": "执业药师资料",
+                "assetType": "handout",
+                "versionNo": 1,
+                "fragmentCode": "F1",
+                "heading": "高频资料",
+                "pageFrom": 1,
+                "pageTo": 1,
+                "assetConfidentiality": "internal",
+                "content": "资料片段",
+            }
+        ],
+    )
+
+    assert result.raw_metadata["mode"] == "deterministic_p8_resource_lead"
+    assert [card["structureSlot"] for card in result.cards] == ["cover_hook", "resource_bait"]
+    assert result.cards[0]["title"].startswith("执业药师资料别乱买")
+    assert "药师资料" in result.cards[0]["cta"]
+    assert "仅使用站内转化动作" in result.cards[0]["auditFlags"]

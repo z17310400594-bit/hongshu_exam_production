@@ -1,9 +1,8 @@
 import { View, Text } from '@tarojs/components'
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useExamArticleStore } from '@/store/examArticleStore'
-import type { CardData } from '@/types/exam-article'
+import type { CardData, CardType, P8ConversionMode } from '@/types/exam-article'
 import { STYLE_TOKENS } from '@/constants/style-tokens'
-import { PRESET_PLAN_TYPE, PRESET_KNOWLEDGE_TYPE } from '@/constants/card-templates'
 import { getCardPlainText, deepClone, validateGeneratedContent } from '@/utils/validation'
 import { copyToClipboard } from '@/utils/clipboard'
 import { useCardExport } from '@/hooks/useCardExport'
@@ -11,6 +10,12 @@ import { useCertPresets } from '@/hooks/useCertPresets'
 import { TARGET_AUDIENCES, THEME_PRESETS } from '@/constants/audience-theme'
 import { CARD_TYPE_LABELS, CARD_TYPE_BADGES, CARD_TYPE_OPTIONS } from '@/constants/card-type-labels'
 import './index.scss'
+
+const P8_CONVERSION_LABELS: Record<P8ConversionMode, string> = {
+  comment: '评论',
+  private_message: '私信',
+  collect: '收藏',
+}
 
 function getCountdown(examDate: string): string {
   if (!examDate) return '? 天'
@@ -103,9 +108,6 @@ export default function ExamArticle() {
     const style = STYLE_TOKENS.find(s => s.key === store.currentStyle)
     return style?.cssVars ?? {}
   }, [store.currentStyle])
-
-  // 拖拽排序
-  const dragSrcRef = { current: -1 }
 
   // ========== 生成流程 ==========
   const handleGenerate = useCallback(() => {
@@ -360,9 +362,9 @@ export default function ExamArticle() {
       case 'cta':
         bodyHtml = (
           <View className='cta-block'>
-            <Text className='cta-sub'>{displayCard.subtitle}</Text>
+            <Text className='cta-sub'>{displayCard.cta || displayCard.body || displayCard.subtitle}</Text>
             <View className='qr-placeholder'><Text>二维码</Text></View>
-            <Text className='qr-hint'>评论区互动留资</Text>
+            <Text className='qr-hint'>评论 / 私信 / 收藏</Text>
           </View>
         )
         break
@@ -379,7 +381,7 @@ export default function ExamArticle() {
                 </View>
               ))}
             </View>
-            <Text className='resource-hint'>📥 以上资料都整理好了，评论区滴滴我</Text>
+            <Text className='resource-hint'>📥 以上资料都整理好了，评论关键词领取</Text>
           </View>
         )
         break
@@ -709,9 +711,6 @@ export default function ExamArticle() {
                     resolveExamDate(cat.id).then(date => {
                       if (date) store.setExamDate(date)
                     })
-                    if (cat.recommendedPreset) {
-                      store.setCardSequence([...cat.recommendedPreset])
-                    }
                   }
                 } else {
                   setExamMode('preset')
@@ -815,43 +814,100 @@ export default function ExamArticle() {
             )}
           </View>
 
-          {/* 卡片编排 */}
-          <View className='card-arranger'>
-            <View className='card-arranger-title'>
-              <Text>卡片编排（拖拽排序）</Text>
+          {/* P8 内容结构模板 */}
+          <View className='p8-structure-panel'>
+            <View className='p8-panel-head'>
+              <View>
+                <Text className='p8-panel-title'>内容结构模板</Text>
+                <Text className='p8-panel-desc'>系统生成，可人工编辑；最终自动拆成小红书卡片</Text>
+              </View>
+              <button className='btn-add-card' onClick={store.resetP8Structure}>重新生成结构</button>
             </View>
-            <View className='preset-btns'>
-              <button className='btn-add-card' onClick={() => store.applyPreset(6)}>6 张标准</button>
-              <button className='btn-add-card' onClick={() => store.applyPreset(5)}>5 张精简</button>
-              <button className='btn-add-card' onClick={() => store.applyPreset(7)}>7 张含资料</button>
-              <button className='btn-add-card' onClick={() => store.setCardSequence([...PRESET_PLAN_TYPE])}>📅 计划型</button>
-              <button className='btn-add-card' onClick={() => store.setCardSequence([...PRESET_KNOWLEDGE_TYPE])}>📚 知识型</button>
+
+            <View className='p8-goal-card'>
+              <Text className='p8-goal-label'>首期内容目标</Text>
+              <Text className='p8-goal-title'>资料型引流</Text>
+              <Text className='p8-goal-copy'>固定转化框架，不固定卡片内容；专业内容只做信任背书。</Text>
             </View>
-            <View className='card-chip-list'>
-              {store.cardSequence.map((type, i) => (
-                <div
-                  key={i}
-                  className='card-chip'
-                  draggable
-                  onDragStart={() => { dragSrcRef.current = i }}
-                  onDragOver={(ev: React.DragEvent) => ev.preventDefault()}
-                  onDrop={(ev: React.DragEvent) => {
-                    ev.preventDefault()
-                    const targetIndex = i
-                    if (dragSrcRef.current >= 0 && dragSrcRef.current !== targetIndex) {
-                      store.reorderCards(dragSrcRef.current, targetIndex)
-                    }
-                    dragSrcRef.current = -1
-                  }}
-                >
-                  <Text>{CARD_TYPE_LABELS[type] || type}</Text>
-                  <button className='remove-chip' onClick={() => store.removeCard(i)}>×</button>
-                </div>
+
+            <View className='p8-node-list'>
+              {store.scriptNodes.map((node, i) => (
+                <View key={node.id} className='p8-node-card'>
+                  <View className='p8-node-top'>
+                    <Text className='p8-node-index'>{i + 1}</Text>
+                    <input
+                      className='p8-node-label-input'
+                      value={node.label}
+                      onChange={(e) => store.updateP8ScriptNode(i, { label: e.target.value })}
+                    />
+                    <button className='remove-chip' onClick={() => store.removeP8ScriptNode(i)}>×</button>
+                  </View>
+                  <View className='p8-node-type-row'>
+                    {CARD_TYPE_OPTIONS.map(option => (
+                      <button
+                        key={option.key}
+                        className={`p8-node-type-chip${node.cardType === option.key ? ' is-active' : ''}`}
+                        onClick={() => store.updateP8ScriptNode(i, { cardType: option.key as CardType })}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </View>
+                  <textarea
+                    className='p8-node-purpose'
+                    value={node.purpose}
+                    onChange={(e) => store.updateP8ScriptNode(i, { purpose: e.target.value })}
+                  />
+                </View>
               ))}
             </View>
             <View className='add-card-row'>
-              <button className='btn-add-card' onClick={() => setShowAddCard(true)}>+ 添加卡片</button>
+              <button className='btn-add-card' onClick={store.addP8ScriptNode}>+ 添加结构节点</button>
             </View>
+          </View>
+
+          <View className='form-group'>
+            <Text className='form-label'>资料诱饵（系统推荐，可人工改）</Text>
+            <textarea
+              className='form-textarea'
+              value={store.leadAssetsText}
+              onChange={(e) => store.setLeadAssetsText(e.target.value)}
+            />
+          </View>
+
+          <View className='form-group'>
+            <Text className='form-label'>评论关键词</Text>
+            <input
+              className='form-input full'
+              type='text'
+              value={store.commentKeyword}
+              onChange={(e) => store.setCommentKeyword(e.target.value)}
+            />
+          </View>
+
+          <View className='form-group'>
+            <Text className='form-label'>转化方式</Text>
+            <View className='audience-tags'>
+              {(Object.keys(P8_CONVERSION_LABELS) as P8ConversionMode[]).map(mode => (
+                <button
+                  key={mode}
+                  className={`audience-tag ${store.conversionModes.includes(mode) ? 'active' : ''}`}
+                  onClick={() => store.toggleConversionMode(mode)}
+                >
+                  {P8_CONVERSION_LABELS[mode]}
+                </button>
+              ))}
+            </View>
+          </View>
+
+          <View className='form-group'>
+            <Text className='form-label'>人工补充要求</Text>
+            <textarea
+              className='form-textarea'
+              placeholder='例如：像过来人分享，不要硬广；专业内容只做信任背书，不要写成讲义。'
+              value={store.manualBrief}
+              onChange={(e) => store.setManualBrief(e.target.value)}
+            />
           </View>
 
           {/* 风格 */}
@@ -992,8 +1048,11 @@ export default function ExamArticle() {
               <View className='info-row'><Text className='info-label'>考试</Text><Text className='info-value'>{store.examName || '（AI 推断）'}</Text></View>
               <View className='info-row'><Text className='info-label'>考试日期</Text><Text className='info-value'>{store.examDate || '（AI 推断）'}</Text></View>
               <View className='info-row'><Text className='info-label'>倒计时</Text><Text className='info-value'>{getCountdown(store.examDate)}</Text></View>
-              <View className='info-row'><Text className='info-label'>卡片数量</Text><Text className='info-value'>{store.cardSequence.length} 张</Text></View>
-              <View className='info-row'><Text className='info-label'>卡片序列</Text><Text className='info-value'>{store.cardSequence.map(t => CARD_TYPE_LABELS[t] || t).join(' → ')}</Text></View>
+              <View className='info-row'><Text className='info-label'>内容目标</Text><Text className='info-value'>资料型引流</Text></View>
+              <View className='info-row'><Text className='info-label'>结构节点</Text><Text className='info-value'>{store.scriptNodes.map(n => n.label).join(' → ')}</Text></View>
+              <View className='info-row'><Text className='info-label'>卡片数量</Text><Text className='info-value'>{store.cardSequence.length} 张（由结构自动拆卡）</Text></View>
+              <View className='info-row'><Text className='info-label'>资料诱饵</Text><Text className='info-value'>{store.leadAssetsText}</Text></View>
+              <View className='info-row'><Text className='info-label'>评论关键词</Text><Text className='info-value'>{store.commentKeyword || '（未填写）'}</Text></View>
               <View className='info-row'><Text className='info-label'>风格</Text><Text className='info-value'>{STYLE_TOKENS.find(s => s.key === store.currentStyle)?.name ?? store.currentStyle}</Text></View>
               <View className='info-row'><Text className='info-label'>目标人群</Text><Text className={`info-value ${!store.targetAudience && !store.targetAudienceCustom ? 'info-warn' : ''}`}>{store.targetAudience || store.targetAudienceCustom || '（未填写）⚠️'}</Text></View>
               <View className='info-row'><Text className='info-label'>主题</Text><Text className='info-value'>{store.theme || store.themeCustom || '（未填写）⚠️'}</Text></View>

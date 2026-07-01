@@ -232,6 +232,11 @@ def _normalize_card_sequence(card_sequence: list[str]) -> list[str]:
     return sequence or DEFAULT_CARD_SEQUENCE.copy()
 
 
+def _list_input(inputs: dict[str, Any], key: str) -> list[Any]:
+    value = inputs.get(key)
+    return value if isinstance(value, list) else []
+
+
 def _request_renderable_cards(
     *,
     endpoint: str,
@@ -412,9 +417,12 @@ def _quality_problem(cards: list[dict[str, Any]], *, expected_sequence: list[str
         card_type = str(card.get("type") or "").strip()
         title = str(card.get("title") or "").strip()
         subtitle = str(card.get("subtitle") or "").strip()
-        items = card.get("items") if isinstance(card.get("items"), list) else []
-        days = card.get("days") if isinstance(card.get("days"), list) else []
-        study_material = card.get("study_material") if isinstance(card.get("study_material"), list) else []
+        raw_items = card.get("items")
+        raw_days = card.get("days")
+        raw_study_material = card.get("study_material")
+        items: list[Any] = raw_items if isinstance(raw_items, list) else []
+        days: list[Any] = raw_days if isinstance(raw_days, list) else []
+        study_material: list[Any] = raw_study_material if isinstance(raw_study_material, list) else []
 
         if card_type == "cover":
             if len(title) < 10 or len(subtitle) < 8:
@@ -433,7 +441,7 @@ def _quality_problem(cards: list[dict[str, Any]], *, expected_sequence: list[str
                 for module in study_material
                 if isinstance(module, dict)
                 and str(module.get("module_title") or "").strip()
-                and len(module.get("key_points") if isinstance(module.get("key_points"), list) else []) >= 2
+                and len(_list_input(module, "key_points")) >= 2
             ]
             if len(usable_modules) < 2:
                 return f"study_material card {index} has too few modules"
@@ -590,6 +598,11 @@ def _source_pack_from_citations(
     exam_name = str(inputs.get("examName") or inputs.get("exam_name") or "考试")
     target = str(inputs.get("targetAudience") or inputs.get("target_audience") or "备考人群")
     theme = str(inputs.get("theme") or "高效备考")
+    content_goal = str(inputs.get("contentGoal") or "")
+    lead_assets = _list_input(inputs, "leadAssets")
+    script_nodes = _list_input(inputs, "scriptNodes")
+    comment_keyword = str(inputs.get("commentKeyword") or "资料")
+    conversion_modes = _list_input(inputs, "conversionModes")
     grouped: dict[str, list[dict[str, str]]] = {"textbook": [], "handout": [], "manual": [], "paper": [], "other": []}
     for item in citations[:8]:
         asset_type = str(item.get("assetType") or item.get("asset_type") or "").strip() or "other"
@@ -603,17 +616,43 @@ def _source_pack_from_citations(
         )
 
     priority_topics = _topic_hints_from_citations(citations)
+    narrative_structure = [
+        "封面先给强钩子和明确承诺",
+        "计划卡给阶段路径，不要空日期或空任务",
+        "重点卡给可执行章节/模块清单",
+        "资料卡把教材、考点、秘籍转成领取/打印/复习清单",
+        "收尾卡给收藏、评论、领取资料的行动引导",
+    ]
+    hook_strategy = "用倒计时/人群身份/少走弯路/资料已整理制造点击理由，表达像小红书经验帖，不要像政策公告。"
+    if content_goal == "resource_lead":
+        narrative_structure = [
+            str(node.get("purpose") or node.get("label") or node.get("id"))
+            for node in script_nodes
+            if isinstance(node, dict)
+        ] or [
+            "封面钩子：用资料已整理制造点击理由",
+            "痛点：说明备考资料太散、时间不够",
+            "解决方案：先固定几类资料，不要到处找",
+            "干货预览：只放少量高频点做信任背书",
+            "资料诱饵：展示三色笔记、考点 PDF、打卡表等清单",
+            "领取方式：引导评论关键词、私信或收藏等站内动作",
+        ]
+        hook_strategy = (
+            "资料型引流：目标是生成 80%+ 可用小红书成稿。"
+            "系统以引流转化脚本为中心，不以固定卡片类型为中心；"
+            "专业内容只做信任背书，不要写成完整讲义。"
+        )
+
     return {
         "examBrief": f"{exam_name}备考内容生成。目标人群：{target}。主题方向：{theme}。",
-        "hookStrategy": "用倒计时/人群身份/少走弯路/资料已整理制造点击理由，表达像小红书经验帖，不要像政策公告。",
-        "narrativeStructure": [
-            "封面先给强钩子和明确承诺",
-            "计划卡给阶段路径，不要空日期或空任务",
-            "重点卡给可执行章节/模块清单",
-            "资料卡把教材、考点、秘籍转成领取/打印/复习清单",
-            "收尾卡给收藏、评论、领取资料的行动引导",
-        ],
+        "hookStrategy": hook_strategy,
+        "narrativeStructure": narrative_structure,
         "requestedCards": card_sequence,
+        "contentGoal": content_goal,
+        "structureTemplate": str(inputs.get("structureTemplate") or ""),
+        "leadAssets": [str(item) for item in lead_assets],
+        "commentKeyword": comment_keyword,
+        "conversionModes": [str(item) for item in conversion_modes],
         "priorityTopics": priority_topics,
         "studyPlanMaterial": [
             "第1阶段：先建立科目框架，抓高频模块和常见计算/记忆点",
@@ -793,9 +832,59 @@ def _generate_local(
     theme = str(inputs.get("theme") or "备考规划")
     sequence = card_sequence or ["cover", "plan", "notice", "cta"]
     source_hint = citations[0]["heading"] if citations else "待补充引用"
+    public_citations = [_public_citation(item) for item in citations]
+    if str(inputs.get("contentGoal") or "") == "resource_lead":
+        lead_assets = _list_input(inputs, "leadAssets")
+        asset_names = [str(item).strip() for item in lead_assets if str(item).strip()] or [
+            "三色笔记",
+            "高频考点 PDF",
+            "30 天打卡表",
+            "历年真题解析",
+        ]
+        comment_keyword = str(inputs.get("commentKeyword") or "资料")
+        script_nodes = _list_input(inputs, "scriptNodes")
+        cards: list[dict[str, Any]] = []
+        for index, card_type in enumerate(sequence, start=1):
+            slot = ""
+            if index - 1 < len(script_nodes) and isinstance(script_nodes[index - 1], dict):
+                slot = str(script_nodes[index - 1].get("id") or script_nodes[index - 1].get("label") or "")
+            title = f"{exam_name}资料别乱买，这几份打印出来直接用" if index == 1 else ""
+            subtitle = f"面向{target}，用资料诱饵承接评论/私信/收藏；专业内容只做信任背书。"
+            items = [{"label": name, "content": "系统推荐，可由运营按实际资料名称修改"} for name in asset_names[:5]]
+            if card_type == "priority":
+                items = [
+                    {"label": "高频点", "content": source_hint},
+                    {"label": "专业边界", "content": "只做信任背书，不展开完整讲义"},
+                    {"label": "使用方式", "content": "配合资料清单和真题解析复盘"},
+                ]
+            elif card_type == "notice":
+                items = [
+                    {"label": "痛点", "content": "资料太散、时间太碎，不知道先背哪里"},
+                    {"label": "风险", "content": "不要堆资料，不要承诺官方资料或押题必中"},
+                ]
+            cards.append(
+                {
+                    "type": card_type,
+                    "structureSlot": slot,
+                    "title": title,
+                    "subtitle": subtitle,
+                    "body": f"围绕{asset_names[0]}等资料组织内容，目标是生成 80%+ 可用成稿。",
+                    "cta": f"先收藏，评论“{comment_keyword}”领取资料清单；需要完整清单可以私信。",
+                    "days": [],
+                    "items": items,
+                    "qrcode_url": "",
+                    "citations": public_citations,
+                    "auditFlags": ["不得写官方资料", "不得写押题必中或包过", "仅使用站内转化动作"],
+                }
+            )
+        return ModelGatewayResult(
+            provider="local",
+            model_name="local-draft-generator",
+            cards=cards,
+            raw_metadata={"mode": "deterministic_p8_resource_lead"},
+        )
 
     cards: list[dict[str, Any]] = []
-    public_citations = [_public_citation(item) for item in citations]
     for index, card_type in enumerate(sequence, start=1):
         cards.append(
             {

@@ -86,6 +86,7 @@ export function getCardPlainText(card: CardData): string {
   const lines: string[] = []
   if (card.type === 'cover' && card.title) lines.push(card.title)
   if (card.subtitle) lines.push(card.subtitle)
+  if (card.body) lines.push(card.body)
 
   if (card.type === 'plan' && card.days && card.days.length > 0) {
     lines.push('')
@@ -112,6 +113,17 @@ export function getCardPlainText(card: CardData): string {
         lines.push(`    💡 记忆方法：${mod.memory_tips.join('；')}`)
       }
     })
+  }
+
+  if (card.cta) {
+    lines.push('')
+    lines.push(card.cta)
+  }
+
+  if (card.auditFlags && card.auditFlags.length > 0) {
+    lines.push('')
+    lines.push('审核提示：')
+    card.auditFlags.forEach(flag => lines.push(`  - ${flag}`))
   }
 
   return lines.join('\n')

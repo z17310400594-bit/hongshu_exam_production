@@ -79,6 +79,160 @@
   &.full { width:auto; }
 }
 
+.form-textarea {
+  min-height: 78px;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #1E293B;
+  background: #FFF;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+
+  &:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px rgb(79 70 229 / 10%); }
+}
+
+// P8 资料型引流结构模板
+.p8-structure-panel {
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #FFF7ED;
+}
+
+.p8-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.p8-panel-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9A3412;
+}
+
+.p8-panel-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #9A6A4D;
+  line-height: 1.4;
+}
+
+.p8-goal-card {
+  padding: 10px;
+  border-radius: 8px;
+  background: #FFF;
+  border: 1px solid #FED7AA;
+  margin-bottom: 10px;
+}
+
+.p8-goal-label,
+.p8-goal-copy {
+  display: block;
+  font-size: 11px;
+  color: #9A6A4D;
+  line-height: 1.45;
+}
+
+.p8-goal-title {
+  display: block;
+  margin: 4px 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #C2410C;
+}
+
+.p8-node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.p8-node-card {
+  padding: 8px;
+  border-radius: 8px;
+  background: #FFF;
+  border: 1px solid #FED7AA;
+}
+
+.p8-node-top {
+  display: grid;
+  grid-template-columns: 24px 1fr 96px 22px;
+  align-items: center;
+  gap: 6px;
+}
+
+.p8-node-index {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #C2410C;
+  color: #FFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.p8-node-label-input {
+  height: 30px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #334155;
+  background: #FFF;
+}
+
+.p8-node-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.p8-node-type-chip {
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid #E2E8F0;
+  border-radius: 999px;
+  background: #FFF;
+  color: #475569;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.p8-node-type-chip.is-active {
+  border-color: #C2410C;
+  background: #FFF7ED;
+  color: #C2410C;
+  font-weight: 700;
+}
+
+.p8-node-purpose {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 7px;
+  padding: 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #475569;
+  background: #FFF;
+  resize: vertical;
+  line-height: 1.45;
+  font-family: inherit;
+}
+
 // 卡片编排区
 .card-arranger {
   border: 1px dashed #CBD5E1;

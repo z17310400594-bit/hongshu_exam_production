@@ -12,6 +12,17 @@ export type CardType =
   | 'mnemonics'
   | 'study_material'
 
+export type P8ContentGoal = 'resource_lead'
+
+export type P8ConversionMode = 'comment' | 'private_message' | 'collect'
+
+export interface P8ScriptNode {
+  id: string
+  label: string
+  purpose: string
+  cardType: CardType
+}
+
 export const CardTypeMeta: Record<CardType, { label: string; badge: string }> = {
   cover: { label: '📔 封面', badge: 'badge-cover' },
   plan: { label: '📅 学习计划', badge: 'badge-plan' },
@@ -64,13 +75,17 @@ export interface GenerationCitation {
 /** 单张卡片数据 */
 export interface CardData {
   type: CardType
+  structureSlot?: string
   title: string
   subtitle: string
+  body?: string
+  cta?: string
   days: PlanDay[]
   items: CardItem[]
   qrcode_url: string
   study_material?: StudyMaterialItem[]
   citations?: GenerationCitation[]
+  auditFlags?: string[]
   /** V3.2 plan 卡片专属:过来人心得(2-3句口语化备考经验) */
   mentor_note?: string
 }
@@ -134,6 +149,14 @@ export interface DifyGenerateParams {
   phase2End?: string        // 强化阶段结束日期 YYYY-MM-DD
   targetAudience?: string   // V1.1 目标人群标签或自定义文本
   theme?: string            // V1.1 主题方向预设名或自定义文本
+  contentGoal?: P8ContentGoal
+  structureTemplate?: string
+  scriptNodes?: P8ScriptNode[]
+  leadAssets?: string[]
+  commentKeyword?: string
+  conversionModes?: P8ConversionMode[]
+  cardCount?: number
+  manualBrief?: string
 }
 
 /** Dify Workflow 输出（预期结构，后续根据实际情况调整） */

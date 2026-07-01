@@ -1,9 +1,17 @@
 import { create } from 'zustand'
 import type {
   CardType, CardData, GeneratedContent, ReviewModification,
-  StyleToken, ProgressStep,
+  StyleToken, ProgressStep, P8ScriptNode, P8ConversionMode,
 } from '@/types/exam-article'
 import { PRESET_STANDARD, PRESET_COMPACT, PRESET_WITH_STUDY } from '@/constants/card-templates'
+import {
+  P8_RESOURCE_LEAD_ASSETS,
+  P8_RESOURCE_LEAD_COMMENT_KEYWORD,
+  P8_RESOURCE_LEAD_CONVERSION_MODES,
+  P8_RESOURCE_LEAD_TEMPLATE,
+  cloneP8ResourceLeadNodes,
+  p8NodesToCardSequence,
+} from '@/constants/p8-resource-lead'
 import { STYLE_TOKENS, DEFAULT_STYLE_KEY } from '@/constants/style-tokens'
 import { generateCards, rewriteCard, reviseByFeedback } from '@/services/dify'
 import { deepClone } from '@/utils/validation'
@@ -24,6 +32,15 @@ interface ExamArticleState {
   // V1.1 主题方向
   theme: string
   themeCustom: string
+
+  // P8 资料型引流
+  contentGoal: 'resource_lead'
+  structureTemplate: string
+  scriptNodes: P8ScriptNode[]
+  leadAssetsText: string
+  commentKeyword: string
+  conversionModes: P8ConversionMode[]
+  manualBrief: string
 
   // 生成状态
   isGenerating: boolean
@@ -64,6 +81,17 @@ interface ExamArticleState {
   setTheme: (preset: string) => void
   setThemeCustom: (text: string) => void
 
+  // P8 资料型引流
+  resetP8Structure: () => void
+  setP8ScriptNodes: (nodes: P8ScriptNode[]) => void
+  updateP8ScriptNode: (index: number, patch: Partial<P8ScriptNode>) => void
+  removeP8ScriptNode: (index: number) => void
+  addP8ScriptNode: () => void
+  setLeadAssetsText: (text: string) => void
+  setCommentKeyword: (text: string) => void
+  toggleConversionMode: (mode: P8ConversionMode) => void
+  setManualBrief: (text: string) => void
+
   // 生成
   startGenerate: () => Promise<void>
 
@@ -96,13 +124,20 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
   certificateCode: '',
   examName: '执业医师资格证',
   examDate: '2026-08-02',
-  cardSequence: [...PRESET_STANDARD],
+  cardSequence: p8NodesToCardSequence(cloneP8ResourceLeadNodes()),
   currentStyle: DEFAULT_STYLE_KEY,
 
   targetAudience: '',
   targetAudienceCustom: '',
   theme: '',
   themeCustom: '',
+  contentGoal: 'resource_lead',
+  structureTemplate: P8_RESOURCE_LEAD_TEMPLATE,
+  scriptNodes: cloneP8ResourceLeadNodes(),
+  leadAssetsText: P8_RESOURCE_LEAD_ASSETS.join('、'),
+  commentKeyword: P8_RESOURCE_LEAD_COMMENT_KEYWORD,
+  conversionModes: [...P8_RESOURCE_LEAD_CONVERSION_MODES],
+  manualBrief: '',
 
   isGenerating: false,
   progressSteps: [],
@@ -179,8 +214,73 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
     set({ themeCustom: text, theme: '' })
   },
 
+  resetP8Structure: () => {
+    const nodes = cloneP8ResourceLeadNodes()
+    set({
+      scriptNodes: nodes,
+      cardSequence: p8NodesToCardSequence(nodes),
+      structureTemplate: P8_RESOURCE_LEAD_TEMPLATE,
+    })
+  },
+
+  setP8ScriptNodes: (nodes: P8ScriptNode[]) => {
+    const normalized = nodes.length > 0 ? nodes : cloneP8ResourceLeadNodes()
+    set({
+      scriptNodes: normalized,
+      cardSequence: p8NodesToCardSequence(normalized),
+    })
+  },
+
+  updateP8ScriptNode: (index: number, patch: Partial<P8ScriptNode>) => {
+    set(state => {
+      const nodes = state.scriptNodes.map((node, i) => (i === index ? { ...node, ...patch } : node))
+      return { scriptNodes: nodes, cardSequence: p8NodesToCardSequence(nodes) }
+    })
+  },
+
+  removeP8ScriptNode: (index: number) => {
+    set(state => {
+      if (state.scriptNodes.length <= 3) return state
+      const nodes = state.scriptNodes.filter((_, i) => i !== index)
+      return { scriptNodes: nodes, cardSequence: p8NodesToCardSequence(nodes) }
+    })
+  },
+
+  addP8ScriptNode: () => {
+    set(state => {
+      const nodes: P8ScriptNode[] = [
+        ...state.scriptNodes,
+        {
+          id: `custom_${Date.now()}`,
+          label: '自定义节点',
+          purpose: '补充运营想强调的转化内容',
+          cardType: 'notice',
+        },
+      ]
+      return { scriptNodes: nodes, cardSequence: p8NodesToCardSequence(nodes) }
+    })
+  },
+
+  setLeadAssetsText: (text: string) => set({ leadAssetsText: text }),
+  setCommentKeyword: (text: string) => set({ commentKeyword: text }),
+  toggleConversionMode: (mode: P8ConversionMode) => {
+    set(state => {
+      const exists = state.conversionModes.includes(mode)
+      const next = exists
+        ? state.conversionModes.filter(item => item !== mode)
+        : [...state.conversionModes, mode]
+      return { conversionModes: next.length > 0 ? next : ['comment'] }
+    })
+  },
+  setManualBrief: (text: string) => set({ manualBrief: text }),
+
   startGenerate: async () => {
-    const { certificateCode, examName, examDate, cardSequence, targetAudience, targetAudienceCustom, theme, themeCustom } = get()
+    const {
+      certificateCode, examName, examDate, cardSequence,
+      targetAudience, targetAudienceCustom, theme, themeCustom,
+      contentGoal, structureTemplate, scriptNodes, leadAssetsText,
+      commentKeyword, conversionModes, manualBrief,
+    } = get()
     set({ isGenerating: true, progressSteps: [] })
 
     try {
@@ -193,6 +293,14 @@ export const useExamArticleStore = create<ExamArticleState>((set, get) => ({
           role: get().role,
           targetAudience: targetAudience || targetAudienceCustom,
           theme: theme || themeCustom,
+          contentGoal,
+          structureTemplate,
+          scriptNodes,
+          leadAssets: leadAssetsText.split(/[、,，\n]/).map(item => item.trim()).filter(Boolean),
+          commentKeyword,
+          conversionModes,
+          cardCount: cardSequence.length,
+          manualBrief,
         },
         (step, label) => {
           set(state => ({

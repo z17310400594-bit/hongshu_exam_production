@@ -1,4 +1,4 @@
-"""Knowledge Platform V2 — FastAPI application entry point."""
+﻿"""Knowledge Platform V2 鈥?FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
 from datetime import date
@@ -45,14 +45,14 @@ app = FastAPI(title="Knowledge Platform V2", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:10086"],
+    allow_origins=["http://localhost:10086", "http://localhost:10087"],
     allow_origin_regex=(
         r"^http://("
         r"localhost|127\.0\.0\.1|"
         r"10(?:\.\d{1,3}){3}|"
         r"192\.168(?:\.\d{1,3}){2}|"
         r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}"
-        r"):10086$"
+        r"):(10086|10087)$"
     ),
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Org-Code"],
