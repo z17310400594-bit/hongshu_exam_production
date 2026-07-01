@@ -512,3 +512,35 @@ def test_local_generator_supports_p8_resource_lead_structure():
     assert result.cards[0]["title"].startswith("执业药师资料别乱买")
     assert "药师资料" in result.cards[0]["cta"]
     assert "仅使用站内转化动作" in result.cards[0]["auditFlags"]
+
+
+def test_dify_payload_embeds_p8_script_nodes_and_manual_brief_in_source_pack():
+    payload = _dify_workflow_payload(
+        application_code="exam_article",
+        output_type="card_set",
+        certificate_code="pharmacist_licensed",
+        principal_code="org_teaching_materials",
+        inputs={
+            "examName": "执业药师",
+            "contentGoal": "resource_lead",
+            "structureTemplate": "resource_lead_v1",
+            "leadAssets": ["三色笔记", "高频考点 PDF"],
+            "commentKeyword": "药师资料",
+            "conversionModes": ["comment", "collect"],
+            "manualBrief": "专业内容只做信任背书",
+            "scriptNodes": [
+                {"id": "cover_hook", "label": "封面钩子", "purpose": "资料已整理", "cardType": "cover"},
+                {"id": "receive_method", "label": "领取方式", "purpose": "评论关键词", "cardType": "cta"},
+            ],
+        },
+        card_sequence=["cover", "cta"],
+        citations=[],
+    )
+
+    generation_inputs = json.loads(payload["inputs"]["generationInputs"])
+    source_pack = generation_inputs["sourcePack"]
+
+    assert source_pack["contentGoal"] == "resource_lead"
+    assert source_pack["scriptNodes"][0]["label"] == "封面钩子"
+    assert source_pack["manualBrief"] == "专业内容只做信任背书"
+    assert source_pack["commentKeyword"] == "药师资料"

@@ -298,6 +298,49 @@ workflow:
 
               source_pack = inputs.get("sourcePack") if isinstance(inputs.get("sourcePack"), dict) else {}
               source_pack_json = json.dumps(source_pack, ensure_ascii=False)
+              content_goal = _safe_str(source_pack.get("contentGoal") or inputs.get("contentGoal"))
+              structure_template = _safe_str(source_pack.get("structureTemplate") or inputs.get("structureTemplate"))
+              script_nodes = source_pack.get("scriptNodes") or inputs.get("scriptNodes") or []
+              if not isinstance(script_nodes, list):
+                  script_nodes = []
+              lead_assets = source_pack.get("leadAssets") or inputs.get("leadAssets") or []
+              if isinstance(lead_assets, str):
+                  lead_assets = [item.strip() for item in lead_assets.replace("，", "、").replace(",", "、").split("、") if item.strip()]
+              if not isinstance(lead_assets, list):
+                  lead_assets = []
+              comment_keyword = _safe_str(source_pack.get("commentKeyword") or inputs.get("commentKeyword") or "资料")
+              conversion_modes = source_pack.get("conversionModes") or inputs.get("conversionModes") or []
+              if not isinstance(conversion_modes, list):
+                  conversion_modes = []
+              manual_brief = _safe_str(source_pack.get("manualBrief") or inputs.get("manualBrief"))
+
+              node_lines = []
+              for i, node in enumerate(script_nodes[:8], start=1):
+                  if not isinstance(node, dict):
+                      continue
+                  node_lines.append(
+                      f"{i}. {node.get('label') or node.get('id') or '结构节点'}"
+                      f"｜渲染类型：{node.get('cardType') or 'auto'}"
+                      f"｜目的：{node.get('purpose') or '按资料型引流目标生成'}"
+                  )
+              if not node_lines:
+                  node_lines = [
+                      "1. 封面钩子｜目的：用资料已整理制造点击理由",
+                      "2. 痛点｜目的：说明备考资料太散、时间不够",
+                      "3. 干货预览｜目的：只放少量高频点做信任背书",
+                      "4. 资料诱饵｜目的：展示资料清单和适用场景",
+                      "5. 领取方式｜目的：引导评论关键词、私信或收藏",
+                  ]
+              p8_context = "\n".join([
+                  f"内容目标：{content_goal or 'resource_lead'}",
+                  f"结构模板：{structure_template or 'resource_lead_v1'}",
+                  f"资料诱饵：{'、'.join(str(item) for item in lead_assets) or '三色笔记、考点 PDF、打卡表、易混点表'}",
+                  f"评论关键词：{comment_keyword}",
+                  f"允许转化动作：{'、'.join(str(item) for item in conversion_modes) or '评论、私信、收藏'}",
+                  f"人工补充要求：{manual_brief or '无'}",
+                  "内容结构节点：",
+                  *node_lines,
+              ])
               card_instructions = [
                   f"{card_type}: {CARD_INSTRUCTIONS.get(card_type, CARD_INSTRUCTIONS['cover'])}"
                   for card_type in sequence
@@ -309,6 +352,11 @@ workflow:
                       "type": card_type,
                       "index": index,
                       "totalCards": len(sequence),
+                      "structureSlot": (
+                          script_nodes[index - 1].get("label")
+                          if index - 1 < len(script_nodes) and isinstance(script_nodes[index - 1], dict)
+                          else ""
+                      ),
                       "citations": [],
                   }
                   for index, card_type in enumerate(sequence, start=1)
@@ -364,6 +412,8 @@ workflow:
           {source_pack_json}
 
           【P8资料型引流规则】
+          {p8_context}
+
           - 如果 sourcePack.contentGoal = "resource_lead"，你必须以“资料领取转化”为第一目标。
           - sourcePack.structureTemplate 表示内容结构模板；sourcePack.scriptNodes 表示人工可编辑的内容脚本节点。
           - 每张卡要对应一个脚本节点；请把脚本节点 label 写入 structureSlot 字段，把节点目的落实到 title/subtitle/body/items/cta。

@@ -650,9 +650,11 @@ def _source_pack_from_citations(
         "requestedCards": card_sequence,
         "contentGoal": content_goal,
         "structureTemplate": str(inputs.get("structureTemplate") or ""),
+        "scriptNodes": script_nodes,
         "leadAssets": [str(item) for item in lead_assets],
         "commentKeyword": comment_keyword,
         "conversionModes": [str(item) for item in conversion_modes],
+        "manualBrief": str(inputs.get("manualBrief") or ""),
         "priorityTopics": priority_topics,
         "studyPlanMaterial": [
             "第1阶段：先建立科目框架，抓高频模块和常见计算/记忆点",
