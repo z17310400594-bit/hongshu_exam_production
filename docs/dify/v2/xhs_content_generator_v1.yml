@@ -58,9 +58,21 @@ workflow:
         isInLoop: false
         sourceType: start
         targetType: llm
-      id: start-source-generate-target
+      id: start-source-extract-target
       selected: false
       source: start
+      sourceHandle: source
+      target: extract_knowledge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: extract-source-generate-target
+      selected: false
+      source: extract_knowledge
       sourceHandle: source
       target: generate_json
       targetHandle: target
@@ -182,6 +194,106 @@ workflow:
           variable_selector: []
         model:
           completion_params:
+            max_tokens: 4096
+            temperature: 0.2
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: sys-xhs-extract-v1
+          role: system
+          text: |-
+            你是执业药师备考资料编辑，负责从原文中提取“可用于小红书陪跑内容生成”的知识点。
+
+            你只输出一个合法 JSON 对象。
+            不要输出 Markdown。
+            不要输出代码块。
+            不要输出解释说明。
+            不要输出 <think>、</think> 或任何思考过程。
+            不要在 JSON 前后添加任何文字。
+
+            抽取原则：
+            - 不要总结成空泛大纲，要抽“能直接写成卡片内容”的具体点。
+            - 优先保留原文中的术语、适应场景、易混点、判断抓手、禁忌/注意事项、题干关键词。
+            - 每个知识点必须有对应原文依据，不能凭空扩展。
+            - 如果用户给了知识点关键词，优先围绕关键词抽取；如果没给，从原文中选 3-5 个最适合做小红书内容的小点。
+            - 保留 3-6 条短原文片段，供后续生成节点引用。每条原文片段不要超过 120 字。
+            - 不输出实际用药建议，只输出考试备考表达可用素材。
+        - id: user-xhs-extract-v1
+          role: user
+          text: |-
+            请从以下原文中提取后续内容生成需要的知识点和原文依据。
+
+            来源：{{#start.source_label#}}
+            原文是否被截断：{{#start.source_truncated#}}
+            用户指定知识点关键词：{{#start.knowledge_keyword#}}
+            内容角度：{{#start.angle_type#}}
+            目标用户：{{#start.target_user#}}
+
+            原文：
+            {{#start.source_text#}}
+
+            输出 JSON schema 必须为：
+            {
+              "source_label": "",
+              "selected_topic": "",
+              "topic_reason": "",
+              "knowledge_points": [
+                {
+                  "name": "",
+                  "exam_value": "",
+                  "plain_explanation": "",
+                  "mistake_or_memory_hook": "",
+                  "source_quote": ""
+                }
+              ],
+              "usable_original_fragments": [
+                {
+                  "label": "",
+                  "quote": "",
+                  "why_useful": ""
+                }
+              ],
+              "content_boundaries": [],
+              "angle_suggestions": {
+                "错因诊断": "",
+                "口诀记忆": "",
+                "避坑纠偏": "",
+                "阶段补救": ""
+              }
+            }
+
+            字段要求：
+            - selected_topic：本篇最适合聚焦的知识点，不要太大。
+            - knowledge_points：3-5 条，每条必须能在 source_quote 中找到依据。
+            - plain_explanation：用运营能看懂的话解释，不要像教材定义。
+            - mistake_or_memory_hook：指出考生容易错、容易忘、容易混的地方。
+            - usable_original_fragments：保留后续生成可引用的原文短句。
+            - content_boundaries：写清哪些表达不能越界，例如不能保过、不能押题、不能给实际用药建议。
+        selected: false
+        title: 提取知识点
+        type: llm
+        vision:
+          enabled: false
+      height: 98
+      id: extract_knowledge
+      position:
+        x: -150
+        y: 220
+      positionAbsolute:
+        x: -150
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
             max_tokens: 8192
             temperature: 0.35
           mode: chat
@@ -210,6 +322,10 @@ workflow:
             - 不讲实际用药建议。
             - 只基于输入原文做备考表达。
             - 风格是轻松、具体、陪伴感，不像教材摘要。
+            - 内容必须有“陪跑感”：像运营在带考生拆一个卡点，而不是像教材、讲义或百科摘要。
+            - 不能只写一句结论。每张卡必须包含可执行动作、判断抓手、记忆抓手或复盘提醒中的至少一种。
+            - 必须围绕第一阶段抽出的 selected_topic 和 knowledge_points 展开，不要偏离到整章泛泛复习。
+            - 专业内容只做信任背书和题目判断抓手，不写成完整讲义。
 
             角度结构：
             - 错因诊断：表面问题 -> 可能错因 -> 原文抓手 -> 判断方法 -> 今日小动作
@@ -219,7 +335,7 @@ workflow:
         - id: user-xhs-content-v1
           role: user
           text: |-
-            请根据以下输入生成一篇小红书备考陪跑笔记包。
+            请根据“第一阶段抽取结果”和用户输入，生成一篇小红书备考陪跑笔记包。
 
             来源：{{#start.source_label#}}
             原文是否被截断：{{#start.source_truncated#}}
@@ -231,7 +347,10 @@ workflow:
             CTA 类型：{{#start.cta_type#}}
             补充要求：{{#start.extra_requirement#}}
 
-            原文：
+            第一阶段抽取结果：
+            {{#extract_knowledge.text#}}
+
+            原文兜底材料：
             {{#start.source_text#}}
 
             输出 JSON schema 必须为：
@@ -274,11 +393,18 @@ workflow:
 
             生成规则：
             - title_candidates 固定 3 个，index 从 0 开始。
-            - cards 建议 4-7 张，按内容自然生成，不要重复凑数。
+            - cards 建议 5-7 张，按内容自然生成，不要重复凑数。
+            - 每张卡 body 不少于 90 个中文字符；信息稍密模式下不少于 120 个中文字符。
+            - 每张卡必须具体写清“怎么识别/怎么记/怎么避坑/今天怎么做”，不能只有口号。
+            - 至少 3 张卡要直接使用第一阶段 knowledge_points 中的具体知识点。
+            - 至少 2 张卡要引用或转述 usable_original_fragments 中的原文依据。
+            - caption 不少于 180 个中文字符，要有陪跑语气、卡点解释、评论引导。
+            - cover_copy 不要泛泛喊话，要点出 selected_topic 或用户填写的知识点关键词。
             - source_basis 最多 5 条，quote 每条不超过 80 字。
             - risk_notes 必须包含“禁止将内容理解为实际用药建议”。
             - 如果原文被截断，risk_notes 需提醒“原文较长，后端已截断”。
             - 复制发布稿能直接给运营二次编辑，避免空泛总结。
+            - 如果第一阶段抽取结果和原文冲突，以原文为准；如果抽取结果为空，基于原文重新聚焦一个小知识点。
         selected: false
         title: 生成 JSON
         type: llm
