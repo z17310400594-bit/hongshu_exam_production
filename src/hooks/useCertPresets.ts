@@ -42,10 +42,12 @@ export function useCertPresets(): {
   certOptions: ExamCategory[]
   loading: boolean
   isV2Enabled: boolean
+  error: string
   resolveExamDate: (categoryId: string) => Promise<string>
 } {
   const [certOptions, setCertOptions] = useState<ExamCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const isV2Enabled = useV2CertificateApi()
 
   useEffect(() => {
@@ -58,10 +60,22 @@ export function useCertPresets(): {
     request
       .then(options => {
         if (cancelled) return
-        setCertOptions(options.length > 0 ? options : EXAM_CATEGORIES)
+        setError('')
+        if (isV2Enabled) {
+          setCertOptions(options)
+        } else {
+          setCertOptions(options.length > 0 ? options : EXAM_CATEGORIES)
+        }
       })
       .catch(() => {
-        if (!cancelled) setCertOptions(EXAM_CATEGORIES)
+        if (cancelled) return
+        if (isV2Enabled) {
+          setCertOptions([])
+          setError('数据库证书列表加载失败，请检查后端 /api/v2/certificates')
+        } else {
+          setCertOptions(EXAM_CATEGORIES)
+          setError('旧证书接口加载失败，已使用本地预设')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -80,5 +94,5 @@ export function useCertPresets(): {
     }
   }, [certOptions, isV2Enabled])
 
-  return { certOptions, loading, isV2Enabled, resolveExamDate }
+  return { certOptions, loading, isV2Enabled, error, resolveExamDate }
 }

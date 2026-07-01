@@ -26,7 +26,7 @@ function getCountdown(examDate: string): string {
 export default function ExamArticle() {
   const store = useExamArticleStore()
   const { exportAll, exportSingle, exportLayered } = useCardExport()
-  const { certOptions, loading: certsLoading, isV2Enabled, resolveExamDate } = useCertPresets()
+  const { certOptions, loading: certsLoading, isV2Enabled, error: certsError, resolveExamDate } = useCertPresets()
 
   // 本地 UI 状态
   const [showConfirm, setShowConfirm] = useState(false)
@@ -688,9 +688,9 @@ export default function ExamArticle() {
             </select>
           </View>
 
-          {/* 考试预设下拉 */}
+          {/* 数据库证书下拉 */}
           <View className='form-group'>
-            <Text className='form-label'>考试类型{isV2Enabled ? '（V2）' : '（旧接口）'}</Text>
+            <Text className='form-label'>证书项目{isV2Enabled ? '（数据库）' : '（旧接口）'}</Text>
             <select
               className='form-select'
               value={examMode === 'preset' ? selectedPreset : '__custom__'}
@@ -720,9 +720,13 @@ export default function ExamArticle() {
                 }
               }}
             >
-              <optgroup label='━━ 预设考试 ━━'>
+              <optgroup label={isV2Enabled ? '━━ 数据库证书项目 ━━' : '━━ 旧接口证书项目 ━━'}>
                 {certsLoading ? (
                   <option disabled>加载中...</option>
+                ) : certsError ? (
+                  <option disabled>{certsError}</option>
+                ) : certOptions.length === 0 ? (
+                  <option disabled>暂无数据库证书项目</option>
                 ) : (
                   certOptions.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -731,6 +735,7 @@ export default function ExamArticle() {
               </optgroup>
               <option value='__custom__'>+ 自定义输入</option>
             </select>
+            {certsError && <Text className='form-hint error'>{certsError}</Text>}
           </View>
 
           {/* 自定义考试名（仅自定义模式显示） */}
