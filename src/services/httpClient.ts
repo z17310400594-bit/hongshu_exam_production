@@ -7,7 +7,8 @@ function readEnv(key: string): string {
 
 function defaultApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:8401`
+    const apiPort = window.location.port === '10087' ? '8402' : '8401'
+    return `http://${window.location.hostname}:${apiPort}`
   }
   return 'http://localhost:8401'
 }
