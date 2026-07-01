@@ -1,4 +1,4 @@
-import { Picker, View, Text } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCertPresets } from '@/hooks/useCertPresets'
 import { copyToClipboard } from '@/utils/clipboard'
@@ -35,6 +35,69 @@ const DENSITIES: Array<{ value: XhsDensity; label: string }> = [
   { value: '短平快', label: '短平快：4-6 张，少字强钩子' },
   { value: '信息稍密', label: '信息稍密：5-7 张，解释更多' },
 ]
+
+interface DropdownOption<T extends string> {
+  value: T
+  label: string
+}
+
+interface SmallDropdownProps<T extends string> {
+  value: T
+  options: Array<DropdownOption<T>>
+  placeholder?: string
+  disabled?: boolean
+  onChange: (value: T) => void
+}
+
+function SmallDropdown<T extends string>({
+  value,
+  options,
+  placeholder = '请选择',
+  disabled = false,
+  onChange,
+}: SmallDropdownProps<T>) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find(option => option.value === value)
+
+  const close = () => setOpen(false)
+
+  return (
+    <View className={`xhs-dropdown ${open ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
+      <View
+        className='xhs-dropdown-trigger'
+        onClick={() => {
+          if (!disabled) setOpen(current => !current)
+        }}
+      >
+        <Text className={`xhs-dropdown-text ${selected ? '' : 'placeholder'}`}>
+          {selected?.label || placeholder}
+        </Text>
+        <Text className='xhs-dropdown-arrow'>▾</Text>
+      </View>
+      {open ? (
+        <View className='xhs-dropdown-menu'>
+          {options.map(option => (
+            <View
+              key={option.value}
+              className={`xhs-dropdown-item ${option.value === value ? 'active' : ''}`}
+              onClick={() => {
+                onChange(option.value)
+                close()
+              }}
+            >
+              <Text>{option.label}</Text>
+            </View>
+          ))}
+          {options.length === 0 ? (
+            <View className='xhs-dropdown-item empty'>
+              <Text>{placeholder}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  )
+}
 
 function resolveChapterCertificateCode(certId: string, certName = ''): string {
   const joined = `${certId} ${certName}`.toLowerCase()
@@ -141,7 +204,10 @@ export default function XhsContentGenerator() {
     () => certOptions.find(item => item.id === selectedCertId),
     [certOptions, selectedCertId],
   )
-  const certIndex = useMemo(() => Math.max(0, certOptions.findIndex(item => item.id === selectedCertId)), [certOptions, selectedCertId])
+  const certDropdownOptions = useMemo(
+    () => certOptions.map(option => ({ value: option.id, label: option.name })),
+    [certOptions],
+  )
 
   useEffect(() => {
     if (!selectedCertId && certOptions.length > 0) {
@@ -186,13 +252,13 @@ export default function XhsContentGenerator() {
     () => chapters.find(item => item.chapterId === selectedChapterId),
     [chapters, selectedChapterId],
   )
-  const chapterIndex = useMemo(
-    () => Math.max(0, chapters.findIndex(item => item.chapterId === selectedChapterId)),
-    [chapters, selectedChapterId],
+  const chapterDropdownOptions = useMemo(
+    () => chapters.map(item => ({
+      value: item.chapterId,
+      label: `${item.assetTitle} / ${item.title}`,
+    })),
+    [chapters],
   )
-  const angleIndex = useMemo(() => Math.max(0, ANGLES.findIndex(item => item.value === angleType)), [angleType])
-  const ctaIndex = useMemo(() => Math.max(0, CTA_TYPES.findIndex(item => item.value === ctaType)), [ctaType])
-  const densityIndex = useMemo(() => Math.max(0, DENSITIES.findIndex(item => item.value === density)), [density])
 
   const payload = useMemo<XhsGeneratePayload>(() => ({
     source_mode: sourceMode,
@@ -272,24 +338,18 @@ export default function XhsContentGenerator() {
       <View className='xhs-config'>
         <View className='xhs-config-head'>
           <Text className='xhs-panel-title'>生成配置</Text>
-          <Text className='xhs-badge'>默认错因诊断</Text>
         </View>
 
         <View className='xhs-form'>
           <View className='xhs-field'>
             <Text className='xhs-label'>证书项目</Text>
-            <Picker
-              mode='selector'
-              range={certOptions.map(option => option.name)}
-              value={certIndex}
+            <SmallDropdown
+              value={selectedCertId}
+              options={certDropdownOptions}
+              placeholder='暂无证书项目'
               disabled={certsLoading || certOptions.length === 0}
-              onChange={(event) => {
-                const next = certOptions[Number(event.detail.value)]
-                if (next) setSelectedCertId(next.id)
-              }}
-            >
-              <View className='xhs-picker-value'>{selectedCert?.name || '暂无证书项目'}</View>
-            </Picker>
+              onChange={setSelectedCertId}
+            />
             {certsError ? <Text className='xhs-hint danger'>{certsError}</Text> : null}
           </View>
 
@@ -320,20 +380,13 @@ export default function XhsContentGenerator() {
                 />
                 <button className='xhs-button' disabled={chaptersLoading} onClick={loadChapters}>搜索</button>
               </View>
-              <Picker
-                mode='selector'
-                range={chapters.map(item => `${item.assetTitle} / ${item.title}`)}
-                value={chapterIndex}
+              <SmallDropdown
+                value={selectedChapterId}
+                options={chapterDropdownOptions}
+                placeholder='暂无章节/片段'
                 disabled={chaptersLoading || chapters.length === 0}
-                onChange={(event) => {
-                  const next = chapters[Number(event.detail.value)]
-                  if (next) setSelectedChapterId(next.chapterId)
-                }}
-              >
-                <View className='xhs-picker-value'>
-                  {selectedChapter ? `${selectedChapter.assetTitle} / ${selectedChapter.title}` : '暂无章节/片段'}
-                </View>
-              </Picker>
+                onChange={setSelectedChapterId}
+              />
               {selectedChapter ? (
                 <Text className='xhs-hint'>
                   {selectedChapter.textPreview || '无预览'}（{selectedChapter.textLength} 字；超过 3000 字后端会截断）
@@ -371,47 +424,29 @@ export default function XhsContentGenerator() {
 
           <View className='xhs-field'>
             <Text className='xhs-label'>内容角度</Text>
-            <Picker
-              mode='selector'
-              range={ANGLES.map(item => item.label)}
-              value={angleIndex}
-              onChange={(event) => {
-                const next = ANGLES[Number(event.detail.value)]
-                if (next) setAngleType(next.value)
-              }}
-            >
-              <View className='xhs-picker-value'>{ANGLES[angleIndex]?.label}</View>
-            </Picker>
+            <SmallDropdown
+              value={angleType}
+              options={ANGLES}
+              onChange={setAngleType}
+            />
           </View>
 
           <View className='xhs-field'>
             <Text className='xhs-label'>CTA</Text>
-            <Picker
-              mode='selector'
-              range={CTA_TYPES.map(item => item.label)}
-              value={ctaIndex}
-              onChange={(event) => {
-                const next = CTA_TYPES[Number(event.detail.value)]
-                if (next) setCtaType(next.value)
-              }}
-            >
-              <View className='xhs-picker-value'>{CTA_TYPES[ctaIndex]?.label}</View>
-            </Picker>
+            <SmallDropdown
+              value={ctaType}
+              options={CTA_TYPES}
+              onChange={setCtaType}
+            />
           </View>
 
           <View className='xhs-field'>
             <Text className='xhs-label'>卡片密度</Text>
-            <Picker
-              mode='selector'
-              range={DENSITIES.map(item => item.label)}
-              value={densityIndex}
-              onChange={(event) => {
-                const next = DENSITIES[Number(event.detail.value)]
-                if (next) setDensity(next.value)
-              }}
-            >
-              <View className='xhs-picker-value'>{DENSITIES[densityIndex]?.label}</View>
-            </Picker>
+            <SmallDropdown
+              value={density}
+              options={DENSITIES}
+              onChange={setDensity}
+            />
           </View>
 
           <View className='xhs-field'>
@@ -470,12 +505,14 @@ export default function XhsContentGenerator() {
             <View className='xhs-sections'>
               <View className='xhs-section'>
                 <Text className='xhs-section-title'>原文依据</Text>
-                {result.internal.source_basis.slice(0, 5).map((item, index) => (
-                  <View key={`${item.source}-${index}`} className='xhs-text-block'>
-                    <Text className='xhs-source-title'>{item.source}</Text>
-                    <Text>{item.quote}</Text>
-                  </View>
-                ))}
+                <View className='xhs-source-card'>
+                  {result.internal.source_basis.slice(0, 5).map((item, index) => (
+                    <View key={`${item.source}-${index}`} className='xhs-source-item'>
+                      <Text className='xhs-source-title'>{item.source}</Text>
+                      <Text className='xhs-source-quote'>{item.quote}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
 
               <View className='xhs-section'>
