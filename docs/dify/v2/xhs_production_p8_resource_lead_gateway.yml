@@ -1,0 +1,550 @@
+app:
+  description: P8 resource-lead backend gateway. Dify receives V2/P8 sourcePack and returns a full Xiaohongshu card set focused on resource-led conversion; V2 API handles data, ACL, citations, model routing, audit, parsing, and quality gates.
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: 小红书生产 P8 资料型引流网关
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.17@f7a5c1d222d17ee419b17a80d6e4923838fe93788dc724a3af73fbc6990b3a32
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+      allowed_file_extensions: []
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: start-source-adapt-target
+      selected: false
+      source: start
+      sourceHandle: source
+      target: adapt_inputs
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: adapt-source-generate-target
+      selected: false
+      source: adapt_inputs
+      sourceHandle: source
+      target: generate_cards
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: generate-source-end-target
+      selected: false
+      source: generate_cards
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: V2 输入
+        type: start
+        variables:
+        - default: exam_article
+          hint: V2 application code, usually exam_article.
+          label: applicationCode
+          options: []
+          placeholder: exam_article
+          required: false
+          type: text-input
+          variable: applicationCode
+        - default: card_set
+          hint: V2 output type, usually card_set.
+          label: outputType
+          options: []
+          placeholder: card_set
+          required: false
+          type: text-input
+          variable: outputType
+        - default: ''
+          hint: V2 certificate code, such as c_constructor_1.
+          label: certificateCode
+          options: []
+          placeholder: c_xxx
+          required: false
+          type: text-input
+          variable: certificateCode
+        - default: '{}'
+          hint: JSON string from V2/P8 API. Includes examName, targetAudience, theme, sourcePack, contentGoal, structureTemplate, scriptNodes, leadAssets, commentKeyword, conversionModes, manualBrief.
+          label: generationInputs
+          options: []
+          placeholder: '{"examName":"执业药师","role":"小红书-医药备考号","targetAudience":"宝妈/在职备考","theme":"资料型引流","sourcePack":{"contentGoal":"resource_lead","leadAssets":["三色笔记","高频考点 PDF"],"commentKeyword":"药师资料"}}'
+          required: true
+          type: paragraph
+          variable: generationInputs
+        - default: '["cover"]'
+          hint: JSON array string. V2 backend passes the full requested card sequence for v1-style grouped generation.
+          label: cardSequence
+          options: []
+          placeholder: '["cover"]'
+          required: true
+          type: paragraph
+          variable: cardSequence
+        - default: '[]'
+          hint: JSON array string. Already ACL-filtered by V2 API. Do not query database in Dify.
+          label: citations
+          options: []
+          placeholder: '[{"assetCode":"asset_demo","fragmentCode":"frag_demo","heading":"考试安排","quote":"考试安排以官方通知为准。"}]'
+          required: false
+          type: paragraph
+          variable: citations
+        - default: ''
+          hint: Optional facts summary generated by V2 API. If empty, this workflow builds one from citations.
+          label: factsBrief
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: factsBrief
+      height: 296
+      id: start
+      position:
+        x: -420
+        y: 220
+      positionAbsolute:
+        x: -420
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        code: |
+          import json
+          from datetime import datetime
+
+          CARD_TYPES = {
+              "cover", "plan", "subjects", "notice", "cta",
+              "resources", "priority", "mnemonics", "study_material",
+          }
+
+          def _loads(value, fallback):
+              if value is None:
+                  return fallback
+              if isinstance(value, (dict, list)):
+                  return value
+              if not isinstance(value, str) or not value.strip():
+                  return fallback
+              try:
+                  return json.loads(value)
+              except Exception:
+                  return fallback
+
+          def _safe_str(value, default=""):
+              if value is None:
+                  return default
+              return str(value).strip()
+
+          CARD_INSTRUCTIONS = {
+              "cover": "封面渲染：强人群钩子 + 资料承诺 + 收藏/评论理由。不要讲完整知识点。",
+              "plan": "阶段渲染：可以承载痛点、解决方案或轻计划；days 必须具体，但服从 scriptNodes 的目的。",
+              "subjects": "清单渲染：输出 3-4 个代表性重点，作为资料价值预览，不写完整讲义。",
+              "notice": "提醒渲染：承载避坑、痛点或考前注意；没有官方事实时不编造时间。",
+              "resources": "资料诱饵渲染：围绕 leadAssets 写领取清单和适用人群，像资料包预览。",
+              "priority": "重点渲染：输出优先级或高频点，突出“先看这些更省时间”。",
+              "mnemonics": "记忆法渲染：只放少量口诀/易混点，目的是证明资料有用。",
+              "study_material": "资料预览渲染：输出 2-3 个模块，每个模块只给代表性 key_points。",
+              "cta": "站内转化渲染：口语化收尾，提示评论关键词、私信或收藏，不夸大承诺。",
+          }
+
+          def _normalize_sequence(raw):
+              sequence = _loads(raw, ["cover"])
+              if isinstance(sequence, str):
+                  sequence = [item.strip() for item in sequence.split(",") if item.strip()]
+              if not isinstance(sequence, list):
+                  sequence = ["cover"]
+              normalized = []
+              for item in sequence:
+                  if isinstance(item, dict):
+                      card_type = _safe_str(item.get("type"))
+                  else:
+                      card_type = _safe_str(item)
+                  if card_type in CARD_TYPES:
+                      normalized.append(card_type)
+              return (normalized or ["cover"])[:8]
+
+          def _normalize_citations(raw):
+              citations = _loads(raw, [])
+              if not isinstance(citations, list):
+                  return []
+              normalized = []
+              for item in citations:
+                  if not isinstance(item, dict):
+                      continue
+                  normalized.append({
+                      "assetCode": _safe_str(item.get("assetCode")),
+                      "assetTitle": _safe_str(item.get("assetTitle")),
+                      "assetType": _safe_str(item.get("assetType")),
+                      "versionNo": item.get("versionNo"),
+                      "fragmentCode": _safe_str(item.get("fragmentCode")),
+                      "heading": _safe_str(item.get("heading")),
+                      "pageFrom": item.get("pageFrom"),
+                      "pageTo": item.get("pageTo"),
+                      "confidentiality": _safe_str(item.get("confidentiality"), "internal"),
+                      "quote": _safe_str(item.get("quote"))[:240],
+                  })
+              return normalized[:8]
+
+          def _brief_from_citations(citations):
+              if not citations:
+                  return "暂无权威引用。涉及考试时间、报名条件、分数线、政策条款时不要写具体数字；使用“以官方通知为准”或“待官方发布”。"
+              lines = ["以下为 V2 后端已完成权限过滤的引用片段，只能使用这些事实："]
+              for i, item in enumerate(citations, start=1):
+                  source = item.get("assetTitle") or item.get("assetCode") or "资料"
+                  heading = item.get("heading") or item.get("fragmentCode") or "片段"
+                  quote = item.get("quote") or ""
+                  page = ""
+                  if item.get("pageFrom"):
+                      page = f" p.{item.get('pageFrom')}"
+                  lines.append(f"{i}. [{source}{page}] {heading}：{quote}")
+              return "\n".join(lines)
+
+          def _days_to_exam(exam_date, countdown_days):
+              if countdown_days not in ("", None):
+                  try:
+                      return max(0, int(countdown_days))
+                  except Exception:
+                      pass
+              try:
+                  exam_d = datetime.strptime(exam_date, "%Y-%m-%d").date()
+                  return max(0, (exam_d - datetime.now().date()).days)
+              except Exception:
+                  return 0
+
+          def main(
+              applicationCode: str = "exam_article",
+              outputType: str = "card_set",
+              certificateCode: str = "",
+              generationInputs: str = "{}",
+              cardSequence: str = "[]",
+              citations: str = "[]",
+              factsBrief: str = "",
+          ) -> dict:
+              inputs = _loads(generationInputs, {})
+              if not isinstance(inputs, dict):
+                  inputs = {}
+              sequence = _normalize_sequence(cardSequence)
+              citation_list = _normalize_citations(citations)
+
+              exam_name = _safe_str(inputs.get("examName") or inputs.get("exam_name") or "考试")
+              exam_date = _safe_str(inputs.get("examDate") or inputs.get("exam_date"))
+              role = _safe_str(inputs.get("role") or "小红书-备考号")
+              target_audience = _safe_str(inputs.get("targetAudience") or inputs.get("target_audience") or "备考人群")
+              theme = _safe_str(inputs.get("theme") or "高效备考")
+              countdown_days = _days_to_exam(exam_date, inputs.get("countdownDays") or inputs.get("countdown_days"))
+
+              source_pack = inputs.get("sourcePack") if isinstance(inputs.get("sourcePack"), dict) else {}
+              source_pack_json = json.dumps(source_pack, ensure_ascii=False)
+              card_instructions = [
+                  f"{card_type}: {CARD_INSTRUCTIONS.get(card_type, CARD_INSTRUCTIONS['cover'])}"
+                  for card_type in sequence
+              ]
+              card_instructions_text = "\n".join(f"- {line}" for line in card_instructions)
+
+              cards = [
+                  {
+                      "type": card_type,
+                      "index": index,
+                      "totalCards": len(sequence),
+                      "citations": [],
+                  }
+                  for index, card_type in enumerate(sequence, start=1)
+              ]
+
+              brief = _safe_str(factsBrief) or _brief_from_citations(citation_list)
+              public_citations_json = json.dumps(citation_list, ensure_ascii=False)
+              cards_json = json.dumps(cards, ensure_ascii=False)
+
+              system_prompt = f"""
+          你是一个“小红书备考资料型引流图文”总编辑。你要先理解 P8 的内容结构模板和转化目标，再输出完整 cards 数组。
+
+          硬约束：
+          1. 只能使用【V2授权事实】里的信息作为事实来源。
+          2. 不得编造考试日期、报名时间、合格标准、报考条件、政策条款、真题年份、具体分值。
+          3. 如果引用里没有某个事实，就写“以官方通知为准”或“待官方发布”，不要补数字。
+          4. 输出必须是纯 JSON，不要 Markdown，不要解释。
+          5. 顶层必须是 {{"cards": [...]}}，cards 数组必须按【当前卡片骨架】的顺序输出完整卡组。
+          6. 每张卡必须包含 citations 字段，但固定输出空数组 []；引用由 V2 后端统一补回，禁止把引用 JSON 复制进卡片正文。
+          7. qrcode_url 固定为空字符串。
+          8. days/items/study_material 必须是数组，不能是 null。
+          9. 标题和正文要像小红书，不要像政策公告；但事实边界必须稳。
+          10. 严禁照抄空模板；每张卡 title 和 subtitle 不得为空。
+          11. 除 cover/cta 外，每张卡至少生成 2 条可渲染内容；不能输出空括号、undefined、空 task。
+          12. cover/plan/notice/cta/resources/priority/mnemonics/subjects 卡片的 title 至少 6 个中文字符或 12 个英文字符。
+          13. 如果事实不足，仍由 LLM 写安全表达；不要输出空字符串，也不要依赖代码节点补文案。
+          14. 禁止输出 <think>、思考过程、分析过程；只输出最终 JSON。
+          15. 小红书结构要像“资料领取型引流内容”：封面抓人，痛点具体，资料诱饵清晰，专业内容只做信任背书，结尾促站内行动。
+          16. 如果 sourcePack.contentGoal 是 resource_lead，必须按 sourcePack.scriptNodes 的 label/purpose 组织整组内容；card type 只是渲染外壳，不代表固定脚本。
+          17. 资料诱饵必须优先使用 sourcePack.leadAssets，例如三色笔记、考点 PDF、打卡表、易混点表；可以拟态命名，但不能声称官方提供。
+          18. CTA 必须使用 sourcePack.commentKeyword，并引导评论、私信或收藏等站内动作；不要出现外部联系方式。
+          19. 专业知识点只用于证明资料有价值，不要写成完整讲义；每张干货卡只展示 2-4 个代表性要点，把完整资料留给领取动作。
+          20. 目标是 80%+ 可用运营成稿：标题、结构、资料诱饵、CTA 都要能直接给运营审核微调，不要输出泛泛摘要。
+
+          角色：{role}
+          目标人群：{target_audience}
+          主题方向：{theme}
+          """.strip()
+
+              user_prompt = f"""
+          请为以下考试生成一整组小红书备考图文卡片。你必须先在心里规划整组节奏，但最终只输出 JSON。
+
+          考试名称：{exam_name}
+          考试日期：{exam_date or "未提供"}
+          距离考试：{countdown_days} 天
+          证书编码：{certificateCode}
+          卡片序列：{", ".join(sequence)}
+
+          【V2授权事实】
+          {brief}
+
+          【V2素材包 sourcePack】
+          {source_pack_json}
+
+          【P8资料型引流规则】
+          - 如果 sourcePack.contentGoal = "resource_lead"，你必须以“资料领取转化”为第一目标。
+          - sourcePack.structureTemplate 表示内容结构模板；sourcePack.scriptNodes 表示人工可编辑的内容脚本节点。
+          - 每张卡要对应一个脚本节点；请把脚本节点 label 写入 structureSlot 字段，把节点目的落实到 title/subtitle/body/items/cta。
+          - sourcePack.leadAssets 是资料诱饵清单，必须在资料卡和 CTA 中自然出现。
+          - sourcePack.commentKeyword 是评论关键词，必须在最后 CTA 中出现。
+          - sourcePack.conversionModes 是允许的转化动作，只能围绕评论、私信、收藏等站内行为写。
+          - sourcePack.manualBrief 是运营人工补充要求，优先级高于默认文案风格，但不能突破事实和合规边界。
+          - 不要把每篇都写成同一套“封面/计划/科目/资料/须知/CTA”；要服从 scriptNodes 的节奏。
+
+          【引用 JSON】
+          {public_citations_json}
+          注意：引用 JSON 只用于理解来源，不要输出到 cards[*].citations。
+
+          【当前卡片骨架】
+          {cards_json}
+
+          每类卡片写作要求：
+          {card_instructions_text}
+
+          强 schema 要求：
+          - plan.days 必须至少 3 条，每条必须有 date、task、duration；不要输出“（）”。
+          - subjects/priority/resources/notice/mnemonics 的 items 必须有 label 和 content，content 不能为空。
+          - study_material 必须输出 3 个模块，每个模块含 module_title、key_points、memory_tips。
+          - cta 可以不写 title，但 subtitle/items 必须有行动引导。
+          - 如果缺少官方考试时间/准考证事实，只能写“以官方通知/准考证为准”，但不要让整张卡只剩这一句话。
+          - P8 卡片建议额外输出 structureSlot、body、cta、auditFlags 字段；旧字段仍要保留，便于前端兼容渲染。
+
+          输出格式：
+          {{
+            "cards": [
+              {{
+                "type": "cover | plan | subjects | notice | cta | resources | priority | mnemonics | study_material",
+                "structureSlot": "",
+                "title": "",
+                "subtitle": "",
+                "body": "",
+                "cta": "",
+                "days": [],
+                "items": [],
+                "qrcode_url": "",
+                "study_material": [],
+                "auditFlags": [],
+                "citations": []
+              }}
+            ]
+          }}
+          """.strip()
+
+              return {
+                  "system_prompt": system_prompt,
+                  "user_prompt": user_prompt,
+                  "cards_json": cards_json,
+                  "citations_json": public_citations_json,
+              }
+        code_language: python3
+        outputs:
+          cards_json:
+            children: null
+            type: string
+          citations_json:
+            children: null
+            type: string
+          system_prompt:
+            children: null
+            type: string
+          user_prompt:
+            children: null
+            type: string
+        selected: false
+        title: 输入适配
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - applicationCode
+          value_type: string
+          variable: applicationCode
+        - value_selector:
+          - start
+          - outputType
+          value_type: string
+          variable: outputType
+        - value_selector:
+          - start
+          - certificateCode
+          value_type: string
+          variable: certificateCode
+        - value_selector:
+          - start
+          - generationInputs
+          value_type: string
+          variable: generationInputs
+        - value_selector:
+          - start
+          - cardSequence
+          value_type: string
+          variable: cardSequence
+        - value_selector:
+          - start
+          - citations
+          value_type: string
+          variable: citations
+        - value_selector:
+          - start
+          - factsBrief
+          value_type: string
+          variable: factsBrief
+      height: 54
+      id: adapt_inputs
+      position:
+        x: -90
+        y: 310
+      positionAbsolute:
+        x: -90
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 8192
+            temperature: 0.35
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: sys-v2-xhs
+          role: system
+          text: '{{#adapt_inputs.system_prompt#}}'
+        - id: user-v2-xhs
+          role: user
+          text: '{{#adapt_inputs.user_prompt#}}'
+        selected: false
+        title: 生成卡片 JSON
+        type: llm
+        vision:
+          enabled: false
+      height: 98
+      id: generate_cards
+      position:
+        x: 240
+        y: 310
+      positionAbsolute:
+        x: 240
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        outputs:
+        - value_selector:
+          - generate_cards
+          - text
+          value_type: string
+          variable: text
+        selected: false
+        title: 输出
+        type: end
+      height: 88
+      id: end
+      position:
+        x: 900
+        y: 300
+      positionAbsolute:
+        x: 900
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    viewport:
+      x: 200
+      y: 50
+      zoom: 0.9
+  rag_pipeline_variables: []
