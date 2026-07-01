@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # local deterministic draft generator; browsers must never receive this key.
     dify_api_url: str = ""
     dify_api_key: str = ""
+    xhs_content_dify_api_key: str = ""
     generation_provider: str = "local"
     generation_orchestration_mode: str = "v1_style"
     # <= 0 disables the HTTP client timeout. Long Dify workflows can exceed

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ToolKey = 'content-producer' | 'topic-finder' | 'v2-flow' | 'more-tools' | 'settings'
+export type ToolKey = 'content-producer' | 'xhs-content' | 'topic-finder' | 'v2-flow' | 'more-tools' | 'settings'
 
 interface WorkbenchState {
   activeTool: ToolKey

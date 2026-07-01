@@ -32,6 +32,13 @@ from api.services.v2_api import (
     list_certificates,
     search_knowledge,
 )
+from api.services.xhs_content import (
+    DEFAULT_CERTIFICATE_CODE,
+    XhsContentError,
+    generate_xhs_content,
+    get_xhs_chapter,
+    list_xhs_chapters,
+)
 
 
 @asynccontextmanager
@@ -133,6 +140,21 @@ class V2GenerationRequest(BaseModel):
     card_sequence: list[str] = Field(default_factory=list, alias="cardSequence")
     inputs: dict = Field(default_factory=dict)
     idempotency_key: str | None = Field(default=None, alias="idempotencyKey")
+
+
+class XhsContentGenerateRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    source_mode: str = Field(default="database", alias="sourceMode")
+    chapter_id: str = Field(default="", alias="chapterId")
+    custom_text: str = Field(default="", alias="customText")
+    knowledge_keyword: str = Field(default="", alias="knowledgeKeyword")
+    angle_type: str = Field(default="错因诊断", alias="angleType")
+    target_user: str = Field(default="学了一段但做题总错", alias="targetUser")
+    tone: str = "备考陪跑"
+    density: str = "短平快"
+    cta_type: str = Field(default="收藏+评论卡点", alias="ctaType")
+    extra_requirement: str = Field(default="", alias="extraRequirement")
 
 
 def _v2_error_response(
@@ -483,6 +505,54 @@ async def v2_post_knowledge_search(
         knowledge_point_codes=payload.knowledge_point_codes,
         asset_types=payload.asset_types,
         top_k=payload.top_k,
+    )
+
+
+@app.get("/api/xhs-content/chapters")
+async def xhs_content_chapters(
+    principal: Annotated[dict, Depends(get_current_principal)],
+    certificate_code: str = Query(default=DEFAULT_CERTIFICATE_CODE),
+    query: str = Query(default=""),
+    asset_type: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+):
+    return list_xhs_chapters(
+        sync_engine,
+        principal_type=principal["principal_type"],
+        principal_code=principal["principal_code"],
+        certificate_code=certificate_code,
+        query=query,
+        asset_type=asset_type,
+        limit=limit,
+    )
+
+
+@app.get("/api/xhs-content/chapters/{chapter_id}")
+async def xhs_content_chapter_detail(
+    chapter_id: str,
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    try:
+        return get_xhs_chapter(
+            sync_engine,
+            principal_type=principal["principal_type"],
+            principal_code=principal["principal_code"],
+            chapter_id=chapter_id,
+        )
+    except XhsContentError as exc:
+        raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+@app.post("/api/xhs-content/generate")
+async def xhs_content_generate(
+    payload: XhsContentGenerateRequest,
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    return generate_xhs_content(
+        sync_engine,
+        principal_type=principal["principal_type"],
+        principal_code=principal["principal_code"],
+        payload=payload.model_dump(),
     )
 
 

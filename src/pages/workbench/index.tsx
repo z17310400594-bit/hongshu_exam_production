@@ -9,17 +9,17 @@ import './index.scss'
 const TopicFinder = lazy(() => import('./components/TopicFinder'))
 const ExamArticle = lazy(() => import('./components/ExamArticle'))
 const V2BusinessFlow = lazy(() => import('./components/V2BusinessFlow'))
+const XhsContentGenerator = lazy(() => import('./components/XhsContentGenerator'))
 
 function LoadingFallback() {
   return (
     <View className='loading-fallback'>
-      <View className='loading-spinner'>⏳</View>
+      <View className='loading-spinner'>⌛</View>
       <Text className='loading-text'>加载中...</Text>
     </View>
   )
 }
 
-/** 占位页面 */
 function PlaceholderPage({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
     <View className='placeholder-page'>
@@ -35,18 +35,23 @@ export default function Workbench() {
   const showV2BusinessFlow = isV2BusinessFlowEnabled()
 
   useLoad(() => {
-    // 线上环境可在此做登录态校验等
+    // 线上环境可在此做登录态校验等。
   })
 
   return (
     <View className='workbench'>
       <LeftNav />
 
-      {/* 主内容区 — 用 page-view 模式，与原型一致 */}
       <View className='main-content'>
         <View className={`page-view ${activeTool === 'content-producer' ? 'active' : ''}`}>
           <Suspense fallback={<LoadingFallback />}>
             <ExamArticle />
+          </Suspense>
+        </View>
+
+        <View className={`page-view ${activeTool === 'xhs-content' ? 'active' : ''}`}>
+          <Suspense fallback={<LoadingFallback />}>
+            <XhsContentGenerator />
           </Suspense>
         </View>
 
@@ -68,7 +73,7 @@ export default function Workbench() {
           <PlaceholderPage
             icon='🛠️'
             title='更多功能'
-            desc='考试模板预设库、风格在线预览、素材库升级 等更多功能即将上线'
+            desc='考试模板预设库、风格在线预览、素材库升级等更多功能即将上线'
           />
         </View>
 
@@ -76,7 +81,7 @@ export default function Workbench() {
           <PlaceholderPage
             icon='🔧'
             title='设置'
-            desc='账号管理、API 密钥配置、偏好设置 等功能即将上线'
+            desc='账号管理、API 密钥配置、偏好设置等功能即将上线'
           />
         </View>
       </View>
