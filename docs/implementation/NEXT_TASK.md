@@ -28,20 +28,20 @@
 - **P4** ✅ 已完成：Taro 新增 `V2闭环` 入口，展示证书/考试/资格/知识/题库/权限/生成引用闭环，H5 build OK，P4 scoped lint OK，backend 149 tests，P3 golden set PASS，见 `reports/P4_FRONTEND_FLOW_SELF_TEST.md`。
 - **P5** ✅ 代码路径已完成：后端模型网关/Dify 配置入口、失败落库、引用非空门禁、前端不持密钥；定向生成测试 6 passed，见 `reports/P5_MODEL_GATEWAY_SELF_TEST.md`。真实 Dify smoke 需在后端密钥环境执行。
 - **P6** ✅ 已完成：新增运维证据 CLI，可生成 DB manifest、恢复对比、API 监控摘要；本地 DB manifest smoke 通过，发布门禁样例 pass，见 `reports/P6_PRODUCTION_OPS_SELF_TEST.md`。
-- **P8** ⏳ 待执行：小红书策略化生成 MVP。先把“固定卡片模板生成”升级为“内容策略 + 钩子 + 卡片角色”的生成方式，详见 `docs/implementation/P8_XHS_STRATEGY_MVP_PLAN.md`。
+- **P8** ❌ 已废弃：小红书策略化生成 MVP 不做了。不要继续识别或执行 `docs/implementation/P8_XHS_STRATEGY_MVP_PLAN.md`，以 `D:\pro_manager\PROJECT_STATE.md` 的最新人工决策为准。
 
-## 下一步（先执行 P8）
+## 下一步（P8 已废弃）
 
 WP00-WP16 已按 MVP 口径完成，WP06-WP16 已统一进入提交 `825648f feat: complete v2 knowledge platform mvp`。
 
 后续不再继续按 WP 编号盲推，改按 `docs/implementation/V2_MVP_TO_PRODUCTION_PLAN.md` 的 P 阶段一步一步执行。
 
-基于最新小红书样例分析，当前下一步已调整为：
+基于 2026-07-03 最新人工决策：
 
-1. 读 `docs/implementation/P8_XHS_STRATEGY_MVP_PLAN.md`；
-2. 按 P8 的 Step 1-6 执行；
-3. 先跑执业药师 + 药学专业知识（一）真实烟测；
-4. 输出 `docs/implementation/reports/P8_XHS_STRATEGY_MVP_SELF_TEST.md`；
-5. 通过后再决定进入 `P8-fix` 还是 `P7`。
+1. P8 小红书策略化生成 MVP 已废弃，不做了；
+2. 不要读取 P8 计划作为下一步；
+3. 不要继续进入旧修复分支或 P7；
+4. 小红书当前标记为阶段 1 已完成；
+5. 后续如要继续小红书方向，必须重新开新需求，并先读取 `D:\pro_manager\PROJECT_STATE.md`。
 
-停止点：P8 只做策略化生成 MVP；不改数据库 schema，不做策略管理后台，不做复杂拖拽编辑器，不直接进入 P7 灰度。
+停止点：不做 P8，不做策略管理后台，不做批量内容中台，不做复杂拖拽编辑器，不直接进入 P7 灰度。
