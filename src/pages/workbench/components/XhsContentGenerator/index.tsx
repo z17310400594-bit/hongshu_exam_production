@@ -262,6 +262,7 @@ export default function XhsContentGenerator() {
 
   const payload = useMemo<XhsGeneratePayload>(() => ({
     source_mode: sourceMode,
+    certificate_project: selectedCert?.name || selectedCertId || '执业药师',
     chapter_id: sourceMode === 'database' ? selectedChapterId : '',
     custom_text: sourceMode === 'custom_text' ? customText.trim() : '',
     knowledge_keyword: knowledgeKeyword.trim(),
@@ -271,14 +272,15 @@ export default function XhsContentGenerator() {
     density,
     cta_type: ctaType,
     extra_requirement: extraRequirement.trim(),
-  }), [angleType, ctaType, customText, density, extraRequirement, knowledgeKeyword, selectedChapterId, sourceMode])
+  }), [angleType, ctaType, customText, density, extraRequirement, knowledgeKeyword, selectedCert?.name, selectedCertId, selectedChapterId, sourceMode])
 
   const validationMessage = useMemo(() => {
+    if (!selectedCertId) return '请先选择证书项目'
     if (sourceMode === 'database' && !selectedChapterId) return '请先选择数据库章节/片段'
     if (sourceMode === 'custom_text' && !customText.trim()) return '请先粘贴自定义素材'
     if (sourceMode === 'custom_text' && customText.length > MAX_CUSTOM_TEXT) return '自定义素材最多 3000 字'
     return ''
-  }, [customText, selectedChapterId, sourceMode])
+  }, [customText, selectedCertId, selectedChapterId, sourceMode])
 
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -424,7 +426,7 @@ export default function XhsContentGenerator() {
 
           <View className='xhs-field'>
             <Text className='xhs-label'>内容角度</Text>
-            <SmallDropdown
+            <SmallDropdown<XhsAngleType>
               value={angleType}
               options={ANGLES}
               onChange={setAngleType}
@@ -433,7 +435,7 @@ export default function XhsContentGenerator() {
 
           <View className='xhs-field'>
             <Text className='xhs-label'>CTA</Text>
-            <SmallDropdown
+            <SmallDropdown<XhsCtaType>
               value={ctaType}
               options={CTA_TYPES}
               onChange={setCtaType}
@@ -442,7 +444,7 @@ export default function XhsContentGenerator() {
 
           <View className='xhs-field'>
             <Text className='xhs-label'>卡片密度</Text>
-            <SmallDropdown
+            <SmallDropdown<XhsDensity>
               value={density}
               options={DENSITIES}
               onChange={setDensity}

@@ -229,6 +229,13 @@ def _normalize_generate_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "source_mode": source_mode,
+        "certificate_project": str(
+            payload.get("certificate_project")
+            or payload.get("certificateProject")
+            or payload.get("certificate_name")
+            or payload.get("certificateName")
+            or "执业药师"
+        ),
         "chapter_id": str(payload.get("chapter_id") or payload.get("chapterId") or ""),
         "custom_text": str(payload.get("custom_text") or payload.get("customText") or ""),
         "knowledge_keyword": str(payload.get("knowledge_keyword") or payload.get("knowledgeKeyword") or ""),

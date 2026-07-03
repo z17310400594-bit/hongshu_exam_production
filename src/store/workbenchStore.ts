@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ToolKey = 'content-producer' | 'xhs-content' | 'topic-finder' | 'v2-flow' | 'more-tools' | 'settings'
+export type ToolKey = 'xhs-content' | 'topic-finder' | 'settings'
 
 interface WorkbenchState {
   activeTool: ToolKey
@@ -8,6 +8,6 @@ interface WorkbenchState {
 }
 
 export const useWorkbenchStore = create<WorkbenchState>(set => ({
-  activeTool: 'content-producer',
+  activeTool: 'xhs-content',
   setActiveTool: (tool: ToolKey) => set({ activeTool: tool }),
 }))

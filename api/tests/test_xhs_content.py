@@ -156,6 +156,7 @@ def test_generate_parses_dify_json(monkeypatch: pytest.MonkeyPatch, engine: Engi
 
     def fake_dify(inputs: dict):
         assert inputs["source_text"].startswith("麻黄")
+        assert inputs["certificate_project"] == "执业药师"
         return json.dumps(
             {
                 "meta": {
@@ -186,7 +187,12 @@ def test_generate_parses_dify_json(monkeypatch: pytest.MonkeyPatch, engine: Engi
         engine,
         principal_type="org",
         principal_code="org_teaching_materials",
-        payload={"source_mode": "database", "chapter_id": "XHS_MAHUANG", "knowledge_keyword": "麻黄"},
+        payload={
+            "source_mode": "database",
+            "certificate_project": "执业药师",
+            "chapter_id": "XHS_MAHUANG",
+            "knowledge_keyword": "麻黄",
+        },
     )
 
     assert result["ok"] is True
@@ -196,7 +202,11 @@ def test_generate_parses_dify_json(monkeypatch: pytest.MonkeyPatch, engine: Engi
 def test_generate_keeps_raw_output_when_json_parse_fails(monkeypatch: pytest.MonkeyPatch, engine: Engine):
     import api.services.xhs_content as service
 
-    monkeypatch.setattr(service, "_call_xhs_dify", lambda inputs: "not json")
+    def fake_dify(inputs: dict):
+        assert inputs["certificate_project"] == "执业药师"
+        return "not json"
+
+    monkeypatch.setattr(service, "_call_xhs_dify", fake_dify)
     result = generate_xhs_content(
         engine,
         principal_type="org",

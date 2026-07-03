@@ -24,6 +24,7 @@ export interface XhsChaptersResponse {
 
 export interface XhsGeneratePayload {
   source_mode: XhsSourceMode
+  certificate_project: string
   chapter_id: string
   custom_text: string
   knowledge_keyword: string

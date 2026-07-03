@@ -146,6 +146,7 @@ class XhsContentGenerateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     source_mode: str = Field(default="database", alias="sourceMode")
+    certificate_project: str = Field(default="执业药师", alias="certificateProject")
     chapter_id: str = Field(default="", alias="chapterId")
     custom_text: str = Field(default="", alias="customText")
     knowledge_keyword: str = Field(default="", alias="knowledgeKeyword")
