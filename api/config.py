@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     # several minutes because the API waits for model queueing + generation.
     model_gateway_timeout_seconds: float = 0.0
 
+    # DeepSeek — used only by backend/offline jobs for the Xi Yao 1 condensed
+    # handout MVP. Secrets stay server-side and are never returned to browsers.
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = ""
+    deepseek_timeout_seconds: float = 120.0
+
+    # Keep the Xi Yao 1 review page available even when the local database is
+    # offline. Set true after offline generation has written generation.output.
+    condensed_handout_use_db: bool = False
+
     @property
     def database_url(self) -> str:
         return f"postgresql+psycopg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"

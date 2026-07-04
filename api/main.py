@@ -17,6 +17,12 @@ from api.config import settings
 from api.database import engine, sync_engine
 from api.deps import get_current_principal
 from api.services.assets import create_download_url, get_minio_client
+from api.services.condensed_handout import (
+    CondensedHandoutError,
+    get_condensed_handout_chapter,
+    list_condensed_handout_chapters,
+    save_condensed_handout_feedback,
+)
 from api.services.content_products import get_content_product_chapters
 from api.services.eligibility import evaluate_eligibility
 from api.services.exam_events import get_exam_events
@@ -156,6 +162,11 @@ class XhsContentGenerateRequest(BaseModel):
     density: str = "短平快"
     cta_type: str = Field(default="收藏+评论卡点", alias="ctaType")
     extra_requirement: str = Field(default="", alias="extraRequirement")
+
+
+class CondensedHandoutFeedbackRequest(BaseModel):
+    status: str = Field(pattern=r"^(usable|needs_revision|not_usable)$")
+    note: str = Field(default="", max_length=2000)
 
 
 def _v2_error_response(
@@ -555,6 +566,45 @@ async def xhs_content_generate(
         principal_code=principal["principal_code"],
         payload=payload.model_dump(),
     )
+
+
+@app.get("/api/condensed-handouts/xi-yao-1/chapters")
+async def xi_yao_1_condensed_handout_chapters(
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    _ = principal
+    return list_condensed_handout_chapters(sync_engine)
+
+
+@app.get("/api/condensed-handouts/xi-yao-1/chapters/{chapter_code}")
+async def xi_yao_1_condensed_handout_chapter_detail(
+    chapter_code: str,
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    _ = principal
+    try:
+        return get_condensed_handout_chapter(sync_engine, chapter_code=chapter_code)
+    except CondensedHandoutError as exc:
+        raise HTTPException(status_code=404, detail=exc.message) from exc
+
+
+@app.post("/api/condensed-handouts/xi-yao-1/chapters/{chapter_code}/feedback")
+async def xi_yao_1_condensed_handout_feedback(
+    chapter_code: str,
+    payload: CondensedHandoutFeedbackRequest,
+    principal: Annotated[dict, Depends(get_current_principal)],
+):
+    try:
+        return save_condensed_handout_feedback(
+            sync_engine,
+            chapter_code=chapter_code,
+            status=payload.status,
+            note=payload.note,
+            principal_code=principal["principal_code"],
+        )
+    except CondensedHandoutError as exc:
+        status_code = 400 if exc.code == "INVALID_FEEDBACK_STATUS" else 404
+        raise HTTPException(status_code=status_code, detail=exc.message) from exc
 
 
 @app.post("/api/v2/generations")

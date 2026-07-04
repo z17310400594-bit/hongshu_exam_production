@@ -7,6 +7,7 @@ import './index.scss'
 
 const TopicFinder = lazy(() => import('./components/TopicFinder'))
 const XhsContentGenerator = lazy(() => import('./components/XhsContentGenerator'))
+const CondensedHandout = lazy(() => import('./components/CondensedHandout'))
 
 function LoadingFallback() {
   return (
@@ -39,6 +40,12 @@ export default function Workbench() {
       <LeftNav />
 
       <View className='main-content'>
+        <View className={`page-view ${activeTool === 'condensed-handout' ? 'active' : ''}`}>
+          <Suspense fallback={<LoadingFallback />}>
+            <CondensedHandout />
+          </Suspense>
+        </View>
+
         <View className={`page-view ${activeTool === 'xhs-content' ? 'active' : ''}`}>
           <Suspense fallback={<LoadingFallback />}>
             <XhsContentGenerator />
