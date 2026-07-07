@@ -630,7 +630,7 @@ Phase 3（稳定后）: 可选扩展到 plan 卡片
 import requests
 
 DIFY_API_URL = "http://localhost/v1"
-DIFY_API_KEY = "app-SLc5nNMlGTuR8XJrEY48ssY1"
+DIFY_API_KEY = "<DIFY_API_KEY>"
 
 TEST_QUERIES = [
     ("执业医师资格证 呼吸系统 COPD 诊断标准", "期望检索到 COPD 诊断标准 chunk"),

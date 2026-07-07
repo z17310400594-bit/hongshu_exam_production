@@ -1,0 +1,37 @@
+{
+  "criticalTables": [
+    "core.certificate",
+    "knowledge.fragment",
+    "assessment.question",
+    "generation.citation"
+  ],
+  "generatedAt": "2026-06-30T00:00:00+00:00",
+  "referenceChecks": {
+    "generation_citation_fragment": {
+      "invalidCount": 0,
+      "status": "checked"
+    }
+  },
+  "tables": {
+    "assessment.question": {
+      "rowCount": 3,
+      "sha256": "question-hash",
+      "status": "present"
+    },
+    "core.certificate": {
+      "rowCount": 12,
+      "sha256": "certificate-hash",
+      "status": "present"
+    },
+    "generation.citation": {
+      "rowCount": 1,
+      "sha256": "citation-hash",
+      "status": "present"
+    },
+    "knowledge.fragment": {
+      "rowCount": 5,
+      "sha256": "fragment-hash",
+      "status": "present"
+    }
+  }
+}

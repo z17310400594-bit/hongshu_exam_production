@@ -1,0 +1,132 @@
+================================================================
+ 政策事实库 + 爆款库 + 真题库 — CSV 批量导入命令
+================================================================
+
+【执行位置】哪里都行，不需要特定路径。
+            CSV 文件路径写对就行（建议 cd 到 CSV模板 目录执行最方便）。
+
+【前置条件】Docker 必须已启动，policy-db 容器必须正在运行。
+           检查命令：docker ps | grep policy-db
+
+================================================================
+ 一、政策事实库（policy_fact）— 10 张表，必须按顺序导入！
+================================================================
+
+1. cert_basic（证书主表）—— 最先导入，其他表都依赖它
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy cert_basic(cert_id,cert_name,short_name,cert_code,issuing_authority,exam_authority,profession_category,valid_nationwide) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < cert_basic.csv
+
+2. policy_doc（政策原文表）
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy policy_doc(doc_id,doc_title,issuing_authority,doc_number,publish_date,effective_date,effective_status,source_url,raw_text) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < policy_doc.csv
+
+3. policy_clause（条款表）—— 依赖 policy_doc
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy policy_clause(clause_id,doc_id,clause_section,clause_text,clause_summary,relates_to_type,relates_to_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < policy_clause.csv
+
+4. exam_subject（科目表）—— 依赖 cert_basic
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exam_subject(subject_id,cert_id,subject_name,full_mark,pass_mark,exam_duration,question_types) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exam_subject.csv
+
+5. years_calc_rule（年限计算规则表）—— 依赖 cert_basic
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy years_calc_rule(rule_id,cert_id,education_type,calc_method,exclude_period,applicable_condition,source_clause_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < years_calc_rule.csv
+
+6. exam_condition（报考条件表）—— 核心表，关联 clause
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exam_condition(condition_id,cert_id,degree_level,major_category,work_years_construction,total_work_years,years_calc_rule_id,note,source_clause_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exam_condition.csv
+
+7. exemption（免考条件表）—— 关联 clause
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exemption(exemption_id,cert_id,condition_description,exempt_subjects,remaining_subjects,source_clause_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exemption.csv
+
+8. exam_schedule（考试时间表）
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exam_schedule(schedule_id,cert_id,year,registration_start,registration_end,exam_date,result_date,region_note) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exam_schedule.csv
+
+9. score_management（成绩管理表）
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy score_management(cert_id,rolling_period,rule_description,source_clause_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < score_management.csv
+
+10. registration_policy（注册与继续教育表）
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy registration_policy(cert_id,initial_reg_period,renewal_period,ce_hours,ce_note,source_clause_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < registration_policy.csv
+
+
+================================================================
+ 二、爆款样本库（policy_fact）— 1 张表，无依赖，直接导入
+================================================================
+
+11. viral_post（爆款笔记表）
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy viral_post(post_id,platform,cert_id,title,content,cover_text,tags,topic_type,post_date,url,views,likes,collects,comments,leads,is_viral,note) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < viral_post.csv
+
+
+================================================================
+ 三、真题库（policy_fact）— 3 张表，按顺序导入
+    前置：先确保 cert_basic 和 exam_subject 已有数据
+================================================================
+
+12. knowledge_point（考点表）—— 先录考点
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy knowledge_point(kp_id,cert_id,subject_id,kp_name,kp_chapter,frequency,note) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < knowledge_point.csv
+
+13. exam_question（真题表）—— 再录真题
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exam_question(question_id,cert_id,subject_id,exam_year,question_type,content,options,answer,analysis,difficulty) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exam_question.csv
+
+14. exam_question_kp（题目-考点关联表）—— 最后关联
+-------------------------------------------------------------------------
+docker exec -i policy-db psql -U policy -d policy_fact -c "\copy exam_question_kp(question_id,kp_id) FROM '/dev/stdin' WITH (FORMAT csv, HEADER true)" < exam_question_kp.csv
+
+
+================================================================
+ 四、导入后校验 SQL（在 psql 里跑）
+================================================================
+
+进入数据库：
+  docker exec -it policy-db psql -U policy -d policy_fact
+
+然后逐个执行：
+
+-- 1. 报考条件漏挂条款
+SELECT condition_id, cert_id FROM exam_condition WHERE source_clause_id IS NULL;
+
+-- 2. 孤儿条款
+SELECT c.clause_id FROM policy_clause c
+LEFT JOIN policy_doc d ON c.doc_id=d.doc_id WHERE d.doc_id IS NULL;
+
+-- 3. 引用废止政策
+SELECT c.clause_id, d.effective_status FROM policy_clause c
+JOIN policy_doc d ON c.doc_id=d.doc_id WHERE d.effective_status='废止';
+
+-- 4. 没挂考点的题目
+SELECT question_id, exam_year FROM exam_question q
+WHERE NOT EXISTS (SELECT 1 FROM exam_question_kp r WHERE r.question_id=q.question_id);
+
+-- 5. 考点实际命中频次（修正 frequency 用）
+SELECT k.kp_name, k.frequency AS 标记, count(r.question_id) AS 实际题数
+FROM knowledge_point k
+LEFT JOIN exam_question_kp r ON k.kp_id=r.kp_id
+GROUP BY k.kp_name, k.frequency
+ORDER BY 实际题数 DESC;
+
+-- 6. 孤儿关联（复核）
+SELECT * FROM exam_question_kp r
+LEFT JOIN exam_question q ON r.question_id=q.question_id
+WHERE q.question_id IS NULL;
+
+
+================================================================
+ 五、注意事项
+================================================================
+
+1. CSV 必须是 UTF-8 编码（Excel 编辑后默认 GBK，导入前另存为 UTF-8）
+2. JSONB 字段（tags、options）里双引号写成 "" 转义
+3. 日期格式：YYYY-MM-DD（如 2025-03-10）
+4. 布尔值：true / false（小写）
+5. 空值：直接留空（两个逗号之间什么都不写），不要写 NULL 或 ""
+
+【最方便的执行方式】
+  cd "C:\Users\Administrator\Desktop\灌数据说明\CSV模板"
+  然后复制上面的命令一条条执行，不用改路径。

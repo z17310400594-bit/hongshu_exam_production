@@ -6,7 +6,8 @@ import LeftNav from './components/LeftNav'
 import './index.scss'
 
 const TopicFinder = lazy(() => import('./components/TopicFinder'))
-const ExamArticle = lazy(() => import('./components/ExamArticle'))
+const XhsContentGenerator = lazy(() => import('./components/XhsContentGenerator'))
+const CondensedHandout = lazy(() => import('./components/CondensedHandout'))
 
 function LoadingFallback() {
   return (
@@ -17,7 +18,6 @@ function LoadingFallback() {
   )
 }
 
-/** 占位页面 */
 function PlaceholderPage({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
     <View className='placeholder-page'>
@@ -32,18 +32,23 @@ export default function Workbench() {
   const activeTool = useWorkbenchStore(s => s.activeTool)
 
   useLoad(() => {
-    // 线上环境可在此做登录态校验等
+    // Reserved for login/session checks in production.
   })
 
   return (
     <View className='workbench'>
       <LeftNav />
 
-      {/* 主内容区 — 用 page-view 模式，与原型一致 */}
       <View className='main-content'>
-        <View className={`page-view ${activeTool === 'content-producer' ? 'active' : ''}`}>
+        <View className={`page-view ${activeTool === 'condensed-handout' ? 'active' : ''}`}>
           <Suspense fallback={<LoadingFallback />}>
-            <ExamArticle />
+            <CondensedHandout />
+          </Suspense>
+        </View>
+
+        <View className={`page-view ${activeTool === 'xhs-content' ? 'active' : ''}`}>
+          <Suspense fallback={<LoadingFallback />}>
+            <XhsContentGenerator />
           </Suspense>
         </View>
 
@@ -53,19 +58,11 @@ export default function Workbench() {
           </Suspense>
         </View>
 
-        <View className={`page-view ${activeTool === 'more-tools' ? 'active' : ''}`}>
-          <PlaceholderPage
-            icon='🛠️'
-            title='更多功能'
-            desc='考试模板预设库、风格在线预览、素材库升级 等更多功能即将上线'
-          />
-        </View>
-
         <View className={`page-view ${activeTool === 'settings' ? 'active' : ''}`}>
           <PlaceholderPage
             icon='🔧'
             title='设置'
-            desc='账号管理、API 密钥配置、偏好设置 等功能即将上线'
+            desc='账号管理、API 密钥配置、偏好设置等功能即将上线'
           />
         </View>
       </View>

@@ -1,0 +1,11 @@
+severity,area,item,reason,next_action
+P1,secret,dify_api_key_history,"P1 已清理当前文件，但历史提交中曾出现 Dify key。","在 Dify 后台轮换/废弃旧 key。"
+P1,data_quality,cert_basic.short_name_duplicates,"旧库多条非一级建造师证书 short_name=一建，例如 yj_jzs5/yj_jzs4/yj_jzs3/yj_jzs1。","业务确认简称；必要时修旧库或建立人工别名审核表。"
+P1,policy,pharmacist_eligibility_years,"旧库结构化报考年限与政策原文/后续政策可能存在口径差异；P2 为跑通链路按旧库结构化数据迁移。","从 2026 执业药师官方报名通知或主管部门最新政策核验大专/本科/硕士/博士年限。"
+P2,exam_schedule,pharmacist_2026_registration,"CPTA 年度计划只给考试日期，不给各省报名起止日期。","从各省人事考试网 2026 执业药师报名通知补 registration phase。"
+P2,exam_schedule,constructor_2026_registration,"CPTA 年度计划只给考试日期，不给各省报名起止日期。","从各省人事考试网 2026 一级建造师报名通知补 registration phase。"
+P2,exam_site,pharmacist_exam_site_detail,"政策只说明考点原则上设在地级以上城市的大中专院校或高考定点学校，未给具体考场。","从准考证/省级考务通知补省市考区或保留为考点设置原则。"
+P2,exam_site,constructor_exam_site_detail,"P2 只核验全国考试日期，未核验一级建造师具体考点/考区。","从省级人事考试网补考区信息。"
+P2,data_gap,constructor_policy_rules,"旧库本批未提供可直接发布的一建报考条件/政策条款闭环。","P3/P4 前补一建政策 doc/clause/eligibility_rule。"
+P2,data_gap,constructor_question_bank,"旧库本批未迁移一建题库/知识点。","后续批次按 subject 迁移题库和知识点。"
+P3,environment,local_fixture_data,"本机 V2 库存在历史 c_* fixture/smoke 证书，模糊查询可能先命中测试数据。","演示前用干净库重建，或执行清理脚本删除测试前缀数据。"

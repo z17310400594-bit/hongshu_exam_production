@@ -16,7 +16,6 @@ def main(
     theme: str = "",
     include_study_material: bool = False,
     narrative_plan: str = "",  # V2: 来自 CODE_0 的叙事大纲
-    chapter_index: str = "",  # V3: chapter_index.json 内容（JSON 字符串）
     db_data_json: str = "",  # V3: 来自 CODE_0_db 的数据库注入数据
     facts_brief: str = "",  # V3: CODE_0_db 产出的 LLM 友好纯文本摘要
 ):
@@ -31,7 +30,7 @@ def main(
     4. plan_count=1 且天数>30 时标记为摘要模式
 
     V3 改动:
-    5. study_material 从 chapter_index 随机分配章节 → 用于匹配 DB 知识点
+    5. study_material 从 DB 考点列表随机分配章节 → 用于匹配对应知识点
     6. 接收 CODE_0_db.db_data_json，按卡片类型注入真实数据库内容
     """
     # ── 1. 解析 cards(兼容 str / list) ──
@@ -182,53 +181,55 @@ def main(
                 })
                 cumulative_days_before += end_offset - start_offset + 1
 
-    # ── 6. * V3:study_material 章节随机分配（排重版）──
+    # ── 6. study_material 考点随机分配（直接从 DB 数据取，不再依赖 chapter_index）──
     sm_indices = [i for i, c in enumerate(cards) if c.get("type") == "study_material"]
     sm_chapter_assignments = {}
 
-    if chapter_index and sm_indices:
+    if sm_indices:
+        # 从 db_data_json 提取考点列表作为"章节"
+        chapters_for_sm = []
         try:
-            index = json.loads(chapter_index)
-            chapters = index.get("chapters", [])
-            if chapters:
-                random.shuffle(chapters)
-                pool = list(chapters)
-                assigned_names = set()  # ★ 排重：已分配的章节名
-
-                for pos, card_idx in enumerate(sm_indices):
-                    # 优先从 pool 取（保证不重复）
-                    ch = None
-                    while pool:
-                        candidate = pool.pop(0)
-                        name = candidate.get("name", "")
-                        if name not in assigned_names:
-                            ch = candidate
-                            break
-                    # pool 耗尽但还有未用的章节——从全部章节中找个没分配过的
-                    if ch is None and len(assigned_names) < len(chapters):
-                        for c in chapters:
-                            if c.get("name", "") not in assigned_names:
-                                ch = c
-                                break
-                    # 所有章节都已分配过——标记为"综合复习"，提示 LLM 避免重复
-                    if ch is None:
-                        prev = "、".join(assigned_names)
-                        ch = {
-                            "name": f"综合复习（已覆盖：{prev}）",
-                            "file": "",
-                        }
-
-                    name = ch.get("name", "")
-                    assigned_names.add(name)
-                    sm_chapter_assignments[card_idx] = {
-                        "assigned_chapter": name,
-                        "sm_index": pos,
-                        "total_sm_cards": len(sm_indices),
-                        "avoid_duplicate_with": prev if ch is None and pos > 0 else "",
-                    }
-        except json.JSONDecodeError:
-            # chapter_index 解析失败时降级为空
+            if db_data_json and db_data_json != "{}":
+                db = json.loads(db_data_json)
+                kps_raw = db.get("knowledge_points", [])
+                # 将 kp 转换为兼容旧 chapter 格式的 dict
+                chapters_for_sm = [
+                    {"name": k.get("kp_name", ""), "file": k.get("subject_name", "")}
+                    for k in kps_raw
+                ]
+        except (json.JSONDecodeError, Exception):
             pass
+
+        if chapters_for_sm:
+            random.shuffle(chapters_for_sm)
+            pool = list(chapters_for_sm)
+            assigned_names = set()
+
+            for pos, card_idx in enumerate(sm_indices):
+                ch = None
+                while pool:
+                    candidate = pool.pop(0)
+                    name = candidate.get("name", "")
+                    if name not in assigned_names:
+                        ch = candidate
+                        break
+                if ch is None and len(assigned_names) < len(chapters_for_sm):
+                    for c in chapters_for_sm:
+                        if c.get("name", "") not in assigned_names:
+                            ch = c
+                            break
+                if ch is None:
+                    prev = "、".join(assigned_names)
+                    ch = {"name": f"综合复习（已覆盖：{prev}）", "file": ""}
+
+                name = ch.get("name", "")
+                assigned_names.add(name)
+                sm_chapter_assignments[card_idx] = {
+                    "assigned_chapter": name,
+                    "sm_index": pos,
+                    "total_sm_cards": len(sm_indices),
+                    "avoid_duplicate_with": prev if ch is None and pos > 0 else "",
+                }
 
     # ── 7. 为每张卡片注入上下文,输出 enriched_cards ──
     plan_phase_idx = 0

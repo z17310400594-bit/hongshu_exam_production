@@ -8,9 +8,9 @@ interface NavItem {
 }
 
 const MAIN_ITEMS: NavItem[] = [
-  { key: 'content-producer', label: '内容生产', icon: '📝' },
+  { key: 'condensed-handout', label: '西药讲义', icon: '📘' },
+  { key: 'xhs-content', label: '陪跑生成', icon: '✍️' },
   { key: 'topic-finder', label: '选题分析', icon: '📊' },
-  { key: 'more-tools', label: '更多功能', icon: '⚙️' },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
@@ -23,12 +23,10 @@ export default function LeftNav() {
 
   return (
     <View className='nav-sidebar'>
-      {/* Logo */}
       <View className='nav-logo'>
-        <Text>📕</Text>
+        <Text>📩</Text>
       </View>
 
-      {/* 主导航项 */}
       {MAIN_ITEMS.map(item => (
         <View
           key={item.key}
@@ -40,10 +38,8 @@ export default function LeftNav() {
         </View>
       ))}
 
-      {/* 弹性分隔 */}
       <View className='nav-spacer' />
 
-      {/* 底部导航项 */}
       <View className='nav-bottom'>
         {BOTTOM_ITEMS.map(item => (
           <View

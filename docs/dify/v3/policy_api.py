@@ -28,7 +28,7 @@ from datetime import date, datetime
 from typing import Any
 
 import pg8000
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -85,7 +85,10 @@ def _query(conn, sql: str, params: tuple = ()) -> list[dict]:
             rows.append(dict(zip(columns, [str(v) if isinstance(v, (date, datetime)) else v for v in row])))
         cur.close()
         return rows
-    except Exception:
+    except Exception as e:
+        import traceback, sys
+        print(f"[_query ERROR] {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return []
 
 
@@ -284,41 +287,76 @@ def query_certs():
 
 
 @app.post("/query/cert_lookup")
-def cert_lookup(req: CertLookupRequest):
+async def cert_lookup(request: Request):
     """
     考试名 → cert_id 查找。三级匹配：精确 → 包含 → 未命中。
     命中返回 cert_id，未命中返回 matched=false。
+    额外处理 Windows GBK 终端乱码。
     """
-    exam_name = req.exam_name.strip()
+    # 从原始 body 解析，避免 FastAPI 自动 UTF-8 解码吞掉 GBK 字节
+    body = await request.body()
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        # JSON 解析失败，尝试 GBK 解码后重试
+        try:
+            data = json.loads(body.decode("gbk"))
+        except Exception:
+            return {"matched": False, "cert_id": "", "cert_name": "", "short_name": ""}
+
+    exam_name = data.get("exam_name", "").strip()
     if not exam_name:
         return {"matched": False, "cert_id": "", "cert_name": "", "short_name": ""}
 
-    with get_conn() as conn:
-        # 1. 精确匹配 cert_name 或 short_name
-        rows = _query(
-            conn,
-            "SELECT cert_id, cert_name, short_name FROM cert_basic "
-            "WHERE cert_name = %s OR short_name = %s LIMIT 1",
-            (exam_name, exam_name),
-        )
-        if rows:
-            r = rows[0]
-            return {"matched": True, "cert_id": r["cert_id"], "cert_name": r["cert_name"], "short_name": r.get("short_name", "")}
+    # 构建候选名列表——处理 GBK 终端发送的乱码
+    candidates = [exam_name]
+    # 尝试将字符串当 GBK 字节解释为 UTF-8 恢复
+    try:
+        recovered = exam_name.encode("raw_unicode_escape").decode("raw_unicode_escape")
+        if recovered != exam_name:
+            candidates.append(recovered)
+    except Exception:
+        pass
+    # 直接尝试 GBK 解码原始 body
+    try:
+        alt_body = body.decode("gbk")
+        alt_data = json.loads(alt_body)
+        alt_name = alt_data.get("exam_name", "").strip()
+        if alt_name and alt_name != exam_name:
+            candidates.append(alt_name)
+    except Exception:
+        pass
 
-        # 2. 双向包含匹配
-        rows = _query(
-            conn,
-            "SELECT cert_id, cert_name, short_name FROM cert_basic "
-            "WHERE %s LIKE '%%' || cert_name || '%%' "
-            "   OR cert_name LIKE '%%' || %s || '%%' "
-            "LIMIT 1",
-            (exam_name, exam_name),
-        )
-        if rows:
-            r = rows[0]
-            return {"matched": True, "cert_id": r["cert_id"], "cert_name": r["cert_name"], "short_name": r.get("short_name", "")}
+    with get_conn() as conn:
+        for name in candidates:
+            # 1. 精确匹配 cert_name 或 short_name
+            rows = _query(
+                conn,
+                "SELECT cert_id, cert_name, short_name FROM cert_basic "
+                "WHERE cert_name = %s OR short_name = %s LIMIT 1",
+                (name, name),
+            )
+            if rows:
+                r = rows[0]
+                print(f"[cert_lookup] MATCHED exact: '{name}' → {r['cert_id']}", flush=True)
+                return {"matched": True, "cert_id": r["cert_id"], "cert_name": r["cert_name"], "short_name": r.get("short_name", "")}
+
+            # 2. 双向包含匹配
+            rows = _query(
+                conn,
+                "SELECT cert_id, cert_name, short_name FROM cert_basic "
+                "WHERE %s LIKE '%%' || cert_name || '%%' "
+                "   OR cert_name LIKE '%%' || %s || '%%' "
+                "LIMIT 1",
+                (name, name),
+            )
+            if rows:
+                r = rows[0]
+                print(f"[cert_lookup] MATCHED like: '{name}' → {r['cert_id']}", flush=True)
+                return {"matched": True, "cert_id": r["cert_id"], "cert_name": r["cert_name"], "short_name": r.get("short_name", "")}
 
     # 3. 未命中
+    print(f"[cert_lookup] NO MATCH: tried {candidates}", flush=True)
     return {"matched": False, "cert_id": "", "cert_name": "", "short_name": ""}
 
 

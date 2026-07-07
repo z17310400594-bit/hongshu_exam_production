@@ -1,7 +1,5 @@
 // 选题分析工具类型
 
-import type { CardType } from '@/types/exam-article'
-
 /** 考试类目 */
 export interface ExamCategory {
   id: string
@@ -9,7 +7,6 @@ export interface ExamCategory {
   examDate: string // YYYY-MM-DD
   keywords: string[]
   subjects: string[]
-  recommendedPreset?: CardType[]  // 推荐卡组（选择考试时自动套用）
 }
 
 /** 推荐强度 */

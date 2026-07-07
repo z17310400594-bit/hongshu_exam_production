@@ -1,0 +1,483 @@
+app:
+  description: 小红书备考陪跑内容生成 MVP - 过来人备考经验帖风格。后端提供 source_text，Dify 只输出固定 JSON 字符串，后端负责解析和校验。
+  icon: 📝
+  icon_background: '#FFF0F4'
+  icon_type: emoji
+  mode: workflow
+  name: 小红书备考陪跑内容生成 过来人经验帖 V1
+  use_icon_as_answer_icon: false
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+      allowed_file_extensions: []
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: llm
+      id: start-source-extract-target
+      selected: false
+      source: start
+      sourceHandle: source
+      target: extract_knowledge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: extract-source-generate-target
+      selected: false
+      source: extract_knowledge
+      sourceHandle: source
+      target: generate_json
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: generate-source-end-target
+      selected: false
+      source: generate_json
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 输入
+        type: start
+        variables:
+        - default: ''
+          hint: 后端提供的章节/片段原文，最多 3000 字。
+          label: source_text
+          options: []
+          placeholder: ''
+          required: true
+          type: paragraph
+          variable: source_text
+        - default: ''
+          hint: 来源说明，例如“执业药师教材 / 解表药 / 麻黄”。
+          label: source_label
+          options: []
+          placeholder: ''
+          required: false
+          type: text-input
+          variable: source_label
+        - default: 'false'
+          hint: 后端是否截断过原文。
+          label: source_truncated
+          options: []
+          required: false
+          type: text-input
+          variable: source_truncated
+        - default: ''
+          hint: 可选知识点关键词。
+          label: knowledge_keyword
+          options: []
+          placeholder: 麻黄
+          required: false
+          type: text-input
+          variable: knowledge_keyword
+        - default: 错因诊断
+          hint: 错因诊断、口诀记忆、避坑纠偏、阶段补救。
+          label: angle_type
+          options: []
+          placeholder: 错因诊断
+          required: true
+          type: text-input
+          variable: angle_type
+        - default: 学了一段但做题总错
+          hint: 目标用户。
+          label: target_user
+          options: []
+          placeholder: 学了一段但做题总错
+          required: true
+          type: text-input
+          variable: target_user
+        - default: 备考陪跑
+          hint: 内容人设。
+          label: tone
+          options: []
+          placeholder: 备考陪跑
+          required: true
+          type: text-input
+          variable: tone
+        - default: 短平快
+          hint: 短平快或信息稍密。
+          label: density
+          options: []
+          placeholder: 短平快
+          required: true
+          type: text-input
+          variable: density
+        - default: 收藏+评论卡点
+          hint: CTA 类型。
+          label: cta_type
+          options: []
+          placeholder: 收藏+评论卡点
+          required: true
+          type: text-input
+          variable: cta_type
+        - default: ''
+          hint: 运营补充要求。
+          label: extra_requirement
+          options: []
+          placeholder: 标题轻松一点，不要太焦虑
+          required: false
+          type: paragraph
+          variable: extra_requirement
+      height: 360
+      id: start
+      position:
+        x: -420
+        y: 220
+      positionAbsolute:
+        x: -420
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 4096
+            temperature: 0.2
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: sys-xhs-extract-v1
+          role: system
+          text: |-
+            你是执业药师备考资料编辑，负责从原文中提取“可用于小红书过来人备考经验帖”的运营素材。
+
+            你只输出一个合法 JSON 对象。
+            不要输出 Markdown。
+            不要输出代码块。
+            不要输出解释说明。
+            不要输出 <think>、</think> 或任何思考过程。
+            不要在 JSON 前后添加任何文字。
+
+            抽取原则：
+            - 不要总结成教材大纲，要抽“过来人经验帖能直接用”的素材。
+            - 优先保留原文中的术语、章节/模块、易混点、判断抓手、题干关键词、背诵抓手、刷题抓手。
+            - 每个知识点必须有对应原文依据，不能凭空扩展。
+            - 如果用户给了知识点关键词，优先围绕关键词抽取；如果没给，从原文中选 3-5 个最适合做“高频重点/别踩坑/先记这个”的小点。
+            - 保留 3-6 条短原文片段，供后续生成节点引用。每条原文片段不要超过 120 字。
+            - 不输出实际用药建议，只输出考试备考表达可用素材。
+            - 提取结果要能服务这种小红书结构：过来人忠告、备考顺序、高频重点、刷题技巧、资料组合、评论领取。
+        - id: user-xhs-extract-v1
+          role: user
+          text: |-
+            请从以下原文中提取后续“过来人备考经验帖”生成需要的知识点、卡点和原文依据。
+
+            来源：{{#start.source_label#}}
+            原文是否被截断：{{#start.source_truncated#}}
+            用户指定知识点关键词：{{#start.knowledge_keyword#}}
+            内容角度：{{#start.angle_type#}}
+            目标用户：{{#start.target_user#}}
+
+            原文：
+            {{#start.source_text#}}
+
+            输出 JSON schema 必须为：
+            {
+              "source_label": "",
+              "selected_topic": "",
+              "topic_reason": "",
+              "knowledge_points": [
+                {
+                  "name": "",
+                  "exam_value": "",
+                  "plain_explanation": "",
+                  "mistake_or_memory_hook": "",
+                  "source_quote": ""
+                }
+              ],
+              "usable_original_fragments": [
+                {
+                  "label": "",
+                  "quote": "",
+                  "why_useful": ""
+                }
+              ],
+              "content_boundaries": [],
+              "angle_suggestions": {
+                "错因诊断": "",
+                "口诀记忆": "",
+                "避坑纠偏": "",
+                "阶段补救": ""
+              }
+            }
+
+            字段要求：
+            - selected_topic：本篇最适合聚焦的知识点/备考卡点，不要太大。
+            - knowledge_points：3-5 条，每条必须能在 source_quote 中找到依据。
+            - plain_explanation：用运营能看懂的话解释，尽量转成“为什么要先学/怎么学”的表达，不要像教材定义。
+            - mistake_or_memory_hook：指出考生容易错、容易忘、容易混、容易低效的地方。
+            - usable_original_fragments：保留后续生成可引用的原文短句。
+            - content_boundaries：写清哪些表达不能越界，例如不能保过、不能押题、不能给实际用药建议。
+        selected: false
+        title: 提取知识点
+        type: llm
+        vision:
+          enabled: false
+      height: 98
+      id: extract_knowledge
+      position:
+        x: -150
+        y: 220
+      positionAbsolute:
+        x: -150
+        y: 220
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 8192
+            temperature: 0.35
+          mode: chat
+          name: deepseek-v4-pro
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: sys-xhs-content-v1
+          role: system
+          text: |-
+            你是“小红书执业药师备考陪跑内容”的编辑，专门写“过来人备考经验帖/备忘录长图”。
+
+            你只输出一个合法 JSON 对象。
+            不要输出 Markdown。
+            不要输出代码块。
+            不要输出解释说明。
+            不要输出 <think>、</think> 或任何思考过程。
+            不要在 JSON 前后添加任何文字。
+            所有字段必须存在。
+            没有内容时使用空字符串或空数组。
+
+            内容边界：
+            - 不承诺保过、押题、稳过、必考。
+            - 不写“90%考生都错”等无来源数据。
+            - 不虚构个人经历，不假装自己考过。
+            - 不虚构学员案例。
+            - 不讲实际用药建议。
+            - 只基于输入原文做备考表达。
+            - 风格是“过来人建议 + 备忘录截图 + 资料领取前置种草”，不像教材摘要。
+            - 内容必须有“陪跑感”：像运营在带考生拆备考卡点，而不是像教材、讲义或百科摘要。
+            - 不能只写一句结论。每张卡必须包含可执行动作、判断抓手、记忆抓手、刷题动作或复盘提醒中的至少一种。
+            - 必须围绕第一阶段抽出的 selected_topic 和 knowledge_points 展开，不要偏离到整章泛泛复习。
+            - 专业内容只做信任背书和题目判断抓手，不写成完整讲义。
+            - 不要写微信、手机号、二维码、外部联系方式。只允许收藏、评论、私信等站内动作。
+            - 如果没有真实成绩/分值/年份/占比来源，不得编造；可以写“高频”“优先”“建议先看”“结合历年常见题型”。
+
+            经验帖结构：
+            - 开头像过来人的强建议：时间不够/基础弱/总刷错时，先别平均用力。
+            - 中段必须给具体方法：备考顺序、高频重点、背诵+刷题动作、错题复盘。
+            - 后段必须自然承接资料：三色笔记、考点PDF、600题/题库、打卡表、错题表、口诀/公式/法条。
+            - 每张卡像备忘录：短标题 + 高密度条目 + 具体动作。
+
+            角度结构：
+            - 错因诊断：表面问题 -> 过来人忠告 -> 原文抓手 -> 判断方法 -> 刷题/复盘动作
+            - 口诀记忆：难记点 -> 拆分逻辑 -> 记忆句 -> 使用提醒 -> 资料/复习动作
+            - 避坑纠偏：常见低效做法 -> 问题所在 -> 正确替代动作 -> 资料组合/今日动作
+            - 阶段补救：当前状态 -> 不能继续这样学 -> 优先处理点 -> 3步补救动作
+        - id: user-xhs-content-v1
+          role: user
+          text: |-
+            请根据“第一阶段抽取结果”和用户输入，生成一篇小红书备考陪跑笔记包。
+
+            本次内容必须靠近“过来人备考经验帖/备忘录长图”：
+            - 不要写普通知识讲解。
+            - 不要写官方须知。
+            - 不要写成教材摘要。
+            - 要像一个备考过来人把经验、重点、资料和动作整理给新人。
+            - 专业点只展示 2-4 个代表性抓手，用来证明资料有用，不展开成完整讲义。
+
+            来源：{{#start.source_label#}}
+            原文是否被截断：{{#start.source_truncated#}}
+            知识点关键词：{{#start.knowledge_keyword#}}
+            内容角度：{{#start.angle_type#}}
+            目标用户：{{#start.target_user#}}
+            语气人设：{{#start.tone#}}
+            卡片密度：{{#start.density#}}
+            CTA 类型：{{#start.cta_type#}}
+            补充要求：{{#start.extra_requirement#}}
+
+            第一阶段抽取结果：
+            {{#extract_knowledge.text#}}
+
+            原文兜底材料：
+            {{#start.source_text#}}
+
+            输出 JSON schema 必须为：
+            {
+              "meta": {
+                "angle_type": "",
+                "target_user": "",
+                "tone": "",
+                "length_style": "",
+                "cta_type": ""
+              },
+              "internal": {
+                "source_basis": [
+                  { "source": "", "quote": "" }
+                ],
+                "core_point": "",
+                "risk_notes": [],
+                "self_check": []
+              },
+              "external": {
+                "title_candidates": [
+                  { "index": 0, "title": "", "style": "" },
+                  { "index": 1, "title": "", "style": "" },
+                  { "index": 2, "title": "", "style": "" }
+                ],
+                "selected_title_index": 0,
+                "cover_copy": "",
+                "cards": [
+                  { "card_no": 1, "title": "", "body": "", "layout_hint": "" }
+                ],
+                "caption": "",
+                "hashtags": [],
+                "cta": "",
+                "today_action": ""
+              },
+              "next_topics": [
+                { "title": "", "angle_type": "", "reason": "" }
+              ]
+            }
+
+            生成规则：
+            - title_candidates 固定 3 个，index 从 0 开始。
+            - cards 建议 5-7 张，按内容自然生成，不要重复凑数。
+            - 每张卡 body 不少于 100 个中文字符；信息稍密模式下不少于 140 个中文字符。
+            - 每张卡必须具体写清“先看什么/为什么先看/怎么背/怎么刷题/怎么复盘/用什么资料”中的至少两项，不能只有口号。
+            - 至少 3 张卡要直接使用第一阶段 knowledge_points 中的具体知识点。
+            - 至少 2 张卡要引用或转述 usable_original_fragments 中的原文依据。
+            - caption 不少于 220 个中文字符，要有过来人陪跑语气、卡点解释、资料承接、评论引导。
+            - cover_copy 不要泛泛喊话，要点出 selected_topic 或用户填写的知识点关键词，并带“过来人建议/先别乱背/这样学更稳”的感觉。
+            - source_basis 最多 5 条，quote 每条不超过 80 字。
+            - risk_notes 必须包含“禁止将内容理解为实际用药建议”。
+            - 如果原文被截断，risk_notes 需提醒“原文较长，后端已截断”。
+            - 复制发布稿能直接给运营二次编辑，避免空泛总结。
+            - 如果第一阶段抽取结果和原文冲突，以原文为准；如果抽取结果为空，基于原文重新聚焦一个小知识点。
+            - title_candidates 要像小红书标题，不要像论文标题。示例风格：
+              1. “执业药师这个点总错，过来人建议先这样背”
+              2. “别再整章硬啃了，这个考点先抓判断词”
+              3. “备考时间不够，先把这个高频点吃透”
+            - cards 的内容建议按这个节奏：
+              第1张：过来人忠告/为什么这个点要先处理
+              第2张：原文抓手/判断关键词
+              第3张：容易错在哪里/题目怎么挖坑
+              第4张：背诵+刷题动作
+              第5张：资料组合/三色笔记/考点PDF/题库怎么用
+              第6张：今日小动作/评论引导
+            - layout_hint 要指导视觉排版，例如“备忘录大标题”“重点分级清单”“资料包预览”“错因对照表”“今日动作卡”。
+            - cta 根据 CTA 类型写站内动作；如果是“收藏+评论卡点”，就引导收藏并评论卡点/关键词；禁止写微信。
+            - today_action 必须是一个 10-30 分钟能完成的小动作。
+        selected: false
+        title: 生成 JSON
+        type: llm
+        vision:
+          enabled: false
+      height: 98
+      id: generate_json
+      position:
+        x: 120
+        y: 310
+      positionAbsolute:
+        x: 120
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        outputs:
+        - value_selector:
+          - generate_json
+          - text
+          value_type: string
+          variable: text
+        selected: false
+        title: 输出
+        type: end
+      height: 88
+      id: end
+      position:
+        x: 600
+        y: 310
+      positionAbsolute:
+        x: 600
+        y: 310
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    viewport:
+      x: 200
+      y: 50
+      zoom: 0.9
+  rag_pipeline_variables: []

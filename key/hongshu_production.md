@@ -1,2 +1,2 @@
-dify-api-key:app-SLc5nNMlGTuR8XJrEY48ssY1
+dify-api-key:<DIFY_API_KEY>
 server-api:http://localhost/v1

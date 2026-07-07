@@ -7,3 +7,18 @@ node_modules/
 .swc
 *.local
 .claude/memory/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+*.egg-info/
+
+# Local tool caches and scratch work
+.stylelintcache
+.tmp/
+
+# Local Dify backup snapshots; keep intentional source/docs under docs/dify tracked.
+docs/dify/v3/*backup_before*.py

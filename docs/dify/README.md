@@ -52,7 +52,7 @@ docs/dify/
 ## Dify 连接信息
 
 - API: `http://localhost/v1/workflows/run`
-- API Key: `app-TFTd844ZQhdiyG9prkNZAXIg`
+- API Key: `<DIFY_API_KEY>`
 - 前端服务文件: `src/services/dify.ts`
 
 ## 文件规范

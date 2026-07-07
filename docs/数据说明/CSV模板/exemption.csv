@@ -1,0 +1,7 @@
+exemption_id,cert_id,condition_description,exempt_subjects,remaining_subjects,source_clause_id
+exemp_physician_01,physician_licensed,师承方式学习传统医学满3年或经多年实践医术确有专长者经考核推荐可直接报考,无（特殊通道 非免考）,全部科目,
+exemp_pharmacist_01,pharmacist_licensed,取得药学/医学专业高级职称并在药学岗位工作,药学专业知识（一）+药学专业知识（二）,药事管理与法规+药学综合知识与技能,
+exemp_pharmacist_02,pharmacist_licensed,取得中药学/中医学专业高级职称并在中药学岗位工作,中药学专业知识（一）+中药学专业知识（二）,药事管理与法规+中药学综合知识与技能,
+exemp_nle_01,nle,无免考政策（法考无免考科目）,无,全部科目,
+exemp_weisheng_01,physician_title,乡镇卫生院/社区卫生服务机构工作的医师可提前一年参加中级考试,无（提前报考 非免考）,全部科目,
+exemp_weisheng_02,physician_title,本科及以上规培合格并到基层医疗卫生机构工作可直接参加中级考试,无（直接报考 非免考）,全部科目,

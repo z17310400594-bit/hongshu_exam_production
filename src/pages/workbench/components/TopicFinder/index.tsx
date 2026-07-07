@@ -1,5 +1,5 @@
-import { View, Text } from '@tarojs/components'
-import { useState, useCallback, useRef } from 'react'
+import { View, Text, Picker } from '@tarojs/components'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useTopicFinderStore } from '@/store/topicFinderStore'
 import { EXAM_CATEGORIES } from '@/constants/exam-categories'
 import { ConfidenceMeta, SourceMeta } from '@/types/topic-finder'
@@ -20,6 +20,8 @@ export default function TopicFinder() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const recordCount = historyRecords.length
+  const categoryNames = useMemo(() => EXAM_CATEGORIES.map(cat => cat.name), [])
+  const currentCategoryIndex = Math.max(0, EXAM_CATEGORIES.findIndex(cat => cat.id === currentCategory))
 
   // Toast 显示
   const showToast = useCallback((msg: string) => {
@@ -78,8 +80,9 @@ export default function TopicFinder() {
   }, [uploadHistoryFile, showToast, triggerAnalysis])
 
   // 切换类目
-  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCategory(e.target.value)
+  const handleCategoryChange = useCallback((event: { detail: { value: number | string } }) => {
+    const nextCategory = EXAM_CATEGORIES[Number(event.detail.value)]
+    if (nextCategory) setCategory(nextCategory.id)
   }, [setCategory])
 
   return (
@@ -99,11 +102,15 @@ export default function TopicFinder() {
       <View className='tf-control-bar'>
         <View className='form-group'>
           <Text className='form-label'>考试类目</Text>
-          <select className='form-select' value={currentCategory} onChange={handleCategoryChange}>
-            {EXAM_CATEGORIES.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
+          <Picker
+            className='form-select'
+            mode='selector'
+            range={categoryNames}
+            value={currentCategoryIndex}
+            onChange={handleCategoryChange}
+          >
+            <View>{EXAM_CATEGORIES[currentCategoryIndex]?.name ?? ''}</View>
+          </Picker>
         </View>
         <View className='form-group'>
           <Text className='form-label'>细分方向（可选）</Text>

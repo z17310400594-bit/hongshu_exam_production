@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: v2-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-knowledge_platform_v2}
+      POSTGRES_USER: ${DB_USER:-v2_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?err}
+    ports:
+      - "${DB_PORT:-5434}:5432"
+    volumes:
+      - v2_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-v2_user} -d ${DB_NAME:-knowledge_platform_v2}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: v2-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?err}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - v2_minio_data:/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: v2-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+volumes:
+  v2_pgdata:
+  v2_minio_data:

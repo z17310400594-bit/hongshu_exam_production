@@ -125,6 +125,8 @@ $shadow-md: 0 4px 16px rgba(0,0,0,0.08);
   cursor: pointer;
   font-family: inherit;
   min-width: 140px;
+  display: flex;
+  align-items: center;
 
   &:focus { border-color: $primary; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
 }

@@ -1,0 +1,79 @@
+{
+  "restoreDrill": {
+    "databaseRestored": true,
+    "objectStorageRestored": true,
+    "rowCountsMatch": true,
+    "hashesMatch": true,
+    "referencesValid": true
+  },
+  "rollbackDrill": {
+    "featureFlags": {
+      "USE_CERTIFICATE_API_V2": "old",
+      "USE_ELIGIBILITY_API_V2": "old",
+      "USE_GENERATION_API_V2": "old"
+    },
+    "apiRollback": true,
+    "elapsedMinutes": 12
+  },
+  "rollout": {
+    "stages": [
+      {
+        "name": "internal",
+        "trafficPercent": 0,
+        "approved": true
+      },
+      {
+        "name": "canary",
+        "trafficPercent": 10,
+        "approved": true
+      },
+      {
+        "name": "full",
+        "trafficPercent": 100,
+        "approved": true
+      }
+    ]
+  },
+  "monitors": {
+    "five_xx_rate": {
+      "actual": 0,
+      "threshold": 0.001,
+      "direction": "lte"
+    },
+    "query_latency_p95_ms": {
+      "actual": 180,
+      "threshold": 500,
+      "direction": "lte"
+    },
+    "retrieval_hit_rate": {
+      "actual": 0.96,
+      "threshold": 0.9,
+      "direction": "gte"
+    },
+    "permission_denial_rate": {
+      "actual": 0.02,
+      "threshold": 0.05,
+      "direction": "lte"
+    },
+    "generation_failure_rate": {
+      "actual": 0,
+      "threshold": 0.01,
+      "direction": "lte"
+    },
+    "missing_citation_rate": {
+      "actual": 0,
+      "threshold": 0,
+      "direction": "lte"
+    }
+  },
+  "oldDatabase": {
+    "mode": "readonly",
+    "retentionReleaseCycles": 2,
+    "deleteScheduled": false
+  },
+  "reports": {
+    "launchReport": "docs/implementation/reports/WP16_LAUNCH_REPORT.sample.md",
+    "restoreReport": "docs/implementation/reports/WP16_RESTORE_REPORT.sample.md",
+    "retirementDecision": "docs/implementation/reports/WP16_OLD_DB_RETIREMENT_DECISION.sample.md"
+  }
+}
